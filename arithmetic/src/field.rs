@@ -5,7 +5,7 @@ use std::{
 
 use rand::RngCore;
 
-pub mod goldilock64;
+pub mod goldilocks64;
 
 pub trait Field:
     Copy
