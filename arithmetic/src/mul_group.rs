@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{field::FftField, };
+use crate::field::FftField;
 
 #[derive(Debug, Clone)]
 pub struct Radix2Group<F: FftField> {
@@ -99,7 +99,10 @@ impl<F: FftField> Radix2Group<F> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{field::{goldilocks64::{Goldilocks64, Goldilocks64Ext}, Field}};
+    use crate::field::{
+        goldilocks64::{Goldilocks64, Goldilocks64Ext},
+        Field,
+    };
 
     use super::*;
     #[test]
