@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "arithmetic", 
-    "pcs",
-    "hyperplonk"
+    "poly_commit",
+    "hyperplonk", 
+    "util"
 ]
