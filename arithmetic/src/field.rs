@@ -28,7 +28,7 @@ pub trait Field:
     type BaseField: Field;
 
     fn zero() -> Self;
-    fn is_zero() -> bool;
+    fn is_zero(&self) -> bool;
     fn one() -> Self;
     fn random(rng: impl RngCore) -> Self;
     fn square(&self) -> Self {
@@ -39,10 +39,10 @@ pub trait Field:
     }
     fn exp(&self, exponent: usize) -> Self;
     fn inv(&self) -> Option<Self>;
-    fn add_base_elem(&self, rhs: &Self::BaseField) -> Self;
-    fn add_assign_base_elem(&mut self, rhs: &Self::BaseField);
-    fn mul_base_elem(&self, rhs: &Self::BaseField) -> Self;
-    fn mul_assign_base_elem(&mut self, rhs: &Self::BaseField);
+    fn add_base_elem(&self, rhs: Self::BaseField) -> Self;
+    fn add_assign_base_elem(&mut self, rhs: Self::BaseField);
+    fn mul_base_elem(&self, rhs: Self::BaseField) -> Self;
+    fn mul_assign_base_elem(&mut self, rhs: Self::BaseField);
     fn from_uniform_bytes(bytes: &[u8; 32]) -> Self;
     fn serialize_into(&self, buffer: &mut [u8]);
     fn deserialize_from(buffer: &[u8]) -> Self;
@@ -51,6 +51,8 @@ pub trait Field:
 pub trait FftField: Field {
     const LOG_ORDER: u32;
     const ROOT_OF_UNITY: Self;
+    type FftBaseField: FftField;
+    fn from_fft_base(v: Self::FftBaseField) -> Self;
 }
 
 pub fn as_bytes_vec<F: Field>(v: &[F]) -> Vec<u8> {
