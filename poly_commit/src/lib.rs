@@ -74,6 +74,7 @@ mod tests {
         proof.step(commitment.size());
         let verifier = ShufflePcVerifier::new(&(), commitment);
         let eval = proof.get_next_and_step();
+        transcript.append_f(eval);
         assert!(verifier.verify(&(), &point, eval, &mut transcript, &mut proof));
     }
 }
