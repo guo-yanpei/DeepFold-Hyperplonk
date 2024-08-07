@@ -270,6 +270,14 @@ impl From<u32> for Goldilocks64Ext {
     }
 }
 
+impl From<Goldilocks64> for Goldilocks64Ext {
+    fn from(value: Goldilocks64) -> Self {
+        Goldilocks64Ext {
+            v: [value, Goldilocks64::zero()],
+        }
+    }
+}
+
 impl From<u64> for Goldilocks64Ext {
     fn from(value: u64) -> Self {
         Goldilocks64Ext {
