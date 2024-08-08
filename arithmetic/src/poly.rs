@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
 use crate::field::Field;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 /// Definition for an MLE, with an associated type F.
 pub struct MultiLinearPoly<F: Field> {
-    _data: PhantomData<F>
+    evals: Vec<F::BaseField>
 }
 
 impl<F: Field> MultiLinearPoly<F> {
