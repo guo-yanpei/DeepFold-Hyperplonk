@@ -4,8 +4,6 @@ use util::fiat_shamir::{Proof, Transcript};
 pub struct Sumcheck;
 
 impl Sumcheck {
-    fn extrapolate<F: Field>() {}
-
     fn fold_next_domain<F: Field>(poly_evals: &mut Vec<F>, m: usize, challenge: F) {
         for j in 0..m {
             poly_evals[j] =

@@ -3,7 +3,7 @@ use crate::field::Field;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 /// Definition for an MLE, with an associated type F.
 pub struct MultiLinearPoly<F: Field> {
-    evals: Vec<F>,
+    pub evals: Vec<F>,
 }
 
 impl<F: Field> MultiLinearPoly<F> {

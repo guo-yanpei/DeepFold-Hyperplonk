@@ -2,6 +2,8 @@ use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
 
+use crate::sumcheck::Sumcheck;
+
 pub struct ProverKey<F: Field, PC: PolyCommitProver<F>> {
     pub selector: MultiLinearPoly<F::BaseField>,
     pub selector_commitments: PC,
@@ -16,7 +18,7 @@ pub struct Prover<F: Field, PC: PolyCommitProver<F>> {
 impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
     pub fn prove(&self, pp: &PC::Param, witness: [Vec<F::BaseField>; 3]) -> Proof {
         let mut transcript = Transcript::new();
-        let pc_provers = witness.map(|x| PC::new(pp, &x));
+        let pc_provers = witness.clone().map(|x| PC::new(pp, &x));
 
         for i in 0..3 {
             let commit = pc_provers[i].commit();
@@ -25,9 +27,41 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             transcript.append_u8_slice(&buffer, commit.size());
         }
 
-        let eq_r = (0..12)
-            .map(|_| transcript.challenge_f::<F>())
-            .collect::<Vec<_>>();
+        let bookkeeping = witness
+            .clone()
+            .map(|x| x.into_iter().map(|i| F::from(i)).collect::<Vec<_>>());
+
+        let eq_r = MultiLinearPoly::new_eq(
+            (0..12)
+                .map(|_| transcript.challenge_f::<F>())
+                .collect::<Vec<_>>(),
+        );
+        let point = Sumcheck::prove(
+            [
+                self.prover_key
+                    .selector
+                    .evals
+                    .iter()
+                    .map(|x| F::from(*x))
+                    .collect(),
+                bookkeeping[0].clone(),
+                bookkeeping[1].clone(),
+                bookkeeping[2].clone(),
+                eq_r.evals,
+            ],
+            4,
+            &mut transcript,
+            |v: [F; 5]| v[4] * ((F::one() - v[0]) * (v[1] + v[2]) + v[0] * v[1] * v[2] + v[3]),
+        );
+
+        transcript.append_f(MultiLinearPoly::eval_multilinear(
+            &self.prover_key.selector.evals,
+            &point,
+        ));
+        transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[0], &point));
+        transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[1], &point));
+        transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[2], &point));
+
         transcript.proof
     }
 }
