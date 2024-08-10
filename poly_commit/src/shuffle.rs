@@ -28,6 +28,7 @@ impl<F: Field> CommitmentSerde for RawCommitment<F> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ShufflePcProver<F: Field> {
     evals: Vec<F::BaseField>,
 }
@@ -79,6 +80,7 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ShufflePcVerifier<F: Field> {
     commit: RawCommitment<F>,
 }

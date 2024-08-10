@@ -10,7 +10,7 @@ pub trait CommitmentSerde {
     fn deserialize_from(buffer: &[u8], var_num: usize) -> Self;
 }
 
-pub trait PolyCommitProver<F: Field> {
+pub trait PolyCommitProver<F: Field>: Clone {
     type Param: Clone;
     type Commitment: Clone + Debug + Default + CommitmentSerde;
 
@@ -19,7 +19,7 @@ pub trait PolyCommitProver<F: Field> {
     fn open(&self, pp: &Self::Param, point: &[F], transcript: &mut Transcript);
 }
 
-pub trait PolyCommitVerifier<F: Field> {
+pub trait PolyCommitVerifier<F: Field>: Clone {
     type Param: Clone;
     type Commitment: Clone + Debug + Default + CommitmentSerde;
 
