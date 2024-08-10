@@ -35,7 +35,7 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .map(|_| transcript.challenge_f::<F>())
             .collect::<Vec<_>>();
         let eq_r = MultiLinearPoly::new_eq(&r);
-        let point = Sumcheck::prove(
+        let (point, v) = Sumcheck::prove(
             [
                 self.prover_key
                     .selector
@@ -53,13 +53,10 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             |v: [F; 5]| v[4] * ((F::one() - v[0]) * (v[1] + v[2]) + v[0] * v[1] * v[2] + v[3]),
         );
 
-        transcript.append_f(MultiLinearPoly::eval_multilinear(
-            &self.prover_key.selector.evals,
-            &point,
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[0], &point));
-        transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[1], &point));
-        transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[2], &point));
+        transcript.append_f(v[0]);
+        transcript.append_f(v[1]);
+        transcript.append_f(v[2]);
+        transcript.append_f(v[3]);        
 
         transcript.proof
     }

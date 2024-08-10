@@ -2,6 +2,7 @@ pub mod circuit;
 pub mod prover;
 pub mod verifier;
 mod sumcheck;
+mod prod_check;
 
 #[cfg(test)]
 mod tests {

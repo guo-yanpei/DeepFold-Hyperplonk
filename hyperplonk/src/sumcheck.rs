@@ -17,7 +17,7 @@ impl Sumcheck {
         degree: usize,
         transcript: &mut Transcript,
         f: fn([F; N]) -> F,
-    ) -> Vec<F> {
+    ) -> (Vec<F>, [F; N]) {
         let var_num = evals[0].len().ilog2() as usize;
         let mut new_point = vec![];
         for i in 0..var_num {
@@ -54,7 +54,7 @@ impl Sumcheck {
                 Self::fold_next_domain(j, m / 2, challenge)
             }
         }
-        new_point
+        (new_point, evals.map(|x| x[0]))
     }
 
     fn init_base<F: Field>(n: usize) -> Vec<F> {
