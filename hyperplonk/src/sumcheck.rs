@@ -1,5 +1,5 @@
-use arithmetic::field::Field;
-use util::fiat_shamir::Transcript;
+use arithmetic::field::{batch_inverse, Field};
+use util::fiat_shamir::{Proof, Transcript};
 
 pub struct Sumcheck;
 
@@ -35,8 +35,8 @@ impl Sumcheck {
                         extrapolations.push(e);
                     }
                     for i in 0..n + 1 {
-                        let mut res = F::one();
-                        for j in 0..n {
+                        let mut res = extrapolations[0][i];
+                        for j in 1..n {
                             res *= extrapolations[j][i];
                         }
                         acc[i] += res;
@@ -55,5 +55,51 @@ impl Sumcheck {
         new_point
     }
 
-    pub fn verify() {}
+    fn init_base<F: Field>(n: usize) -> Vec<F> {
+        let mut res = vec![];
+        for i in 0..n + 1 {
+            let mut prod = F::one();
+            for j in 0..n + 1 {
+                if i != j {
+                    prod *= F::from(i as u32) - F::from(j as u32);
+                }
+            }
+            res.push(prod);
+        }
+        batch_inverse(&mut res);
+        res
+    }
+
+    fn uni_extrapolate<F: Field>(base: &Vec<F>, v: Vec<F>, x: F) -> F {
+        let n = base.len() - 1;
+        let mut prod = x;
+        for i in 1..n + 1 {
+            prod *= x - F::from(i as u32);
+        }
+        let mut numerator = (0..n + 1).map(|y| x - F::from(y as u32)).collect::<Vec<_>>();
+        batch_inverse(&mut numerator);
+        let mut res = F::zero();
+        for i in 0..n + 1 {
+            res += numerator[i] * base[i] * v[i];
+        }
+        res * prod
+    }
+
+    pub fn verify<F: Field>(mut y: F, poly_num: usize, var_num: usize, transcript: &mut Transcript, proof: &mut Proof) -> (Vec<F>, F) {
+        let mut res = vec![];
+        let base = Self::init_base(poly_num);
+        for _ in 0..var_num {
+            let mut sums = vec![];
+            for _ in 0..poly_num + 1 {
+                let x: F = proof.get_next_and_step();
+                sums.push(x);
+                transcript.append_f(x);
+            }
+            assert_eq!(sums[0] + sums[1], y);
+            let challenge = transcript.challenge_f();
+            res.push(challenge);
+            y = Self::uni_extrapolate(&base, sums, challenge);
+        }
+        (res, y)
+    }
 }
