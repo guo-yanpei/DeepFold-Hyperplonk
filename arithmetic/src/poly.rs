@@ -11,7 +11,7 @@ impl<F: Field> MultiLinearPoly<F> {
         MultiLinearPoly { evals }
     }
 
-    pub fn new_eq(r: Vec<F>) -> MultiLinearPoly<F> {
+    pub fn new_eq(r: &Vec<F>) -> MultiLinearPoly<F> {
         let mut evals = vec![F::one()];
         for &b in r.iter().rev() {
             evals = evals
@@ -20,6 +20,16 @@ impl<F: Field> MultiLinearPoly<F> {
                 .collect();
         }
         MultiLinearPoly { evals }
+    }
+
+    pub fn eval_eq(r: &Vec<F>, point: &Vec<F>) -> F {
+        assert_eq!(r.len(), point.len());
+        let mut res = F::one();
+        for i in 0..r.len() {
+            let tmp = point[i] * r[i];
+            res *= tmp + tmp - point[i] - r[i] + F::one();
+        }
+        res
     }
 
     pub fn eval_multilinear<FEXT: Field<BaseField = F>>(evals: &Vec<F>, point: &[FEXT]) -> FEXT {
@@ -42,10 +52,7 @@ impl<F: Field> MultiLinearPoly<F> {
         scratch[0]
     }
 
-    pub fn eval_multilinear_ext(
-        evals: &Vec<F>,
-        point: &[F],
-    ) -> F {
+    pub fn eval_multilinear_ext(evals: &Vec<F>, point: &[F]) -> F {
         let mut scratch = evals.to_vec();
         let mut cur_eval_size = evals.len() >> 1;
         for r in point.iter() {
@@ -55,5 +62,26 @@ impl<F: Field> MultiLinearPoly<F> {
             cur_eval_size >>= 1;
         }
         scratch[0]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::thread_rng;
+
+    use crate::field::{goldilocks64::Goldilocks64, Field};
+
+    use super::MultiLinearPoly;
+
+    #[test]
+    fn eq() {
+        let mut rng = thread_rng();
+        let r = (0..12).map(|_| Goldilocks64::random(&mut rng)).collect();
+        let eq_r = MultiLinearPoly::new_eq(&r);
+        let point = (0..12).map(|_| Goldilocks64::random(&mut rng)).collect();
+        assert_eq!(
+            MultiLinearPoly::eval_eq(&r, &point),
+            MultiLinearPoly::eval_multilinear(&eq_r.evals, &point)
+        );
     }
 }

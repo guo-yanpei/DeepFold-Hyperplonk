@@ -10,19 +10,17 @@ pub struct RawCommitment<F: Field> {
 
 impl<F: Field> CommitmentSerde for RawCommitment<F> {
     fn size(&self) -> usize {
-        self.poly_evals.len() * F::SIZE
+        self.poly_evals.len() * F::BaseField::SIZE
     }
     fn serialize_into(&self, buffer: &mut [u8]) {
         self.poly_evals.iter().enumerate().for_each(|(i, v)| {
             v.serialize_into(&mut buffer[i * F::BaseField::SIZE..(i + 1) * F::BaseField::SIZE])
         });
     }
-    fn deserialize_from(buffer: &[u8], var_num: usize) -> Self {
+    fn deserialize_from(proof: &mut Proof, var_num: usize) -> Self {
         let mut poly_evals = Vec::new();
-        for i in 0..(1 << var_num) {
-            poly_evals.push(F::BaseField::deserialize_from(
-                &buffer[i * F::BaseField::SIZE..(i + 1) * F::BaseField::SIZE],
-            ));
+        for _ in 0..(1 << var_num) {
+            poly_evals.push(proof.get_next_and_step());
         }
         RawCommitment { poly_evals }
     }

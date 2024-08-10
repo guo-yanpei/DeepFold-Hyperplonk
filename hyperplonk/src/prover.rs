@@ -31,11 +31,10 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .clone()
             .map(|x| x.into_iter().map(|i| F::from(i)).collect::<Vec<_>>());
 
-        let eq_r = MultiLinearPoly::new_eq(
-            (0..12)
-                .map(|_| transcript.challenge_f::<F>())
-                .collect::<Vec<_>>(),
-        );
+        let r = (0..12)
+            .map(|_| transcript.challenge_f::<F>())
+            .collect::<Vec<_>>();
+        let eq_r = MultiLinearPoly::new_eq(&r);
         let point = Sumcheck::prove(
             [
                 self.prover_key
@@ -47,7 +46,7 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
                 bookkeeping[0].clone(),
                 bookkeeping[1].clone(),
                 bookkeeping[2].clone(),
-                eq_r.evals,
+                eq_r.evals.clone(),
             ],
             4,
             &mut transcript,
