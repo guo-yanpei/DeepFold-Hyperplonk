@@ -1,8 +1,6 @@
 pub mod circuit;
 pub mod prover;
-mod selector;
 pub mod verifier;
-mod witness;
 mod sumcheck;
 
 #[cfg(test)]

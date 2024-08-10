@@ -3,11 +3,22 @@ use crate::field::Field;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 /// Definition for an MLE, with an associated type F.
 pub struct MultiLinearPoly<F: Field> {
-    evals: Vec<F>
+    evals: Vec<F>,
 }
 
 impl<F: Field> MultiLinearPoly<F> {
     pub fn new(evals: Vec<F>) -> MultiLinearPoly<F> {
+        MultiLinearPoly { evals }
+    }
+
+    pub fn new_eq(r: Vec<F>) -> MultiLinearPoly<F> {
+        let mut evals = vec![F::one()];
+        for &b in r.iter().rev() {
+            evals = evals
+                .iter()
+                .flat_map(|&prod| [prod * (F::one() - b), prod * b])
+                .collect();
+        }
         MultiLinearPoly { evals }
     }
 
@@ -31,7 +42,10 @@ impl<F: Field> MultiLinearPoly<F> {
         scratch[0]
     }
 
-    pub fn eval_multilinear_ext<FEXT: Field<BaseField = F>>(evals: &Vec<FEXT>, point: &[FEXT]) -> FEXT {
+    pub fn eval_multilinear_ext(
+        evals: &Vec<F>,
+        point: &[F],
+    ) -> F {
         let mut scratch = evals.to_vec();
         let mut cur_eval_size = evals.len() >> 1;
         for r in point.iter() {

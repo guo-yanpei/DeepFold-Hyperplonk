@@ -1,5 +1,5 @@
 use arithmetic::{field::Field, poly::MultiLinearPoly};
-use poly_commit::PolyCommitProver;
+use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
 
 pub struct ProverKey<F: Field, PC: PolyCommitProver<F>> {
@@ -17,7 +17,17 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
     pub fn prove(&self, pp: &PC::Param, witness: [Vec<F::BaseField>; 3]) -> Proof {
         let mut transcript = Transcript::new();
         let pc_provers = witness.map(|x| PC::new(pp, &x));
-        let x: F = transcript.challenge_f();
+
+        for i in 0..3 {
+            let commit = pc_provers[i].commit();
+            let mut buffer = vec![0u8; commit.size()];
+            commit.serialize_into(&mut buffer);
+            transcript.append_u8_slice(&buffer, commit.size());
+        }
+
+        let eq_r = (0..12)
+            .map(|_| transcript.challenge_f::<F>())
+            .collect::<Vec<_>>();
         transcript.proof
     }
 }
