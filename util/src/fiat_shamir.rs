@@ -18,7 +18,7 @@ impl Proof {
     }
 
     #[inline(always)]
-    pub fn step(&mut self, size: usize) {
+    fn step(&mut self, size: usize) {
         self.idx += size;
     }
 

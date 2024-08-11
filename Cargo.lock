@@ -83,6 +83,12 @@ dependencies = [
 [[package]]
 name = "hyperplonk"
 version = "0.1.0"
+dependencies = [
+ "arithmetic",
+ "poly_commit",
+ "rand",
+ "util",
+]
 
 [[package]]
 name = "libc"

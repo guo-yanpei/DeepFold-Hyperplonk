@@ -306,7 +306,7 @@ impl Field for Goldilocks64Ext {
 
     fn one() -> Self {
         Goldilocks64Ext {
-            v: [1u32.into(), 0u32.into()],
+            v: [Goldilocks64::one(), Goldilocks64::zero()],
         }
     }
 
@@ -360,7 +360,7 @@ impl Field for Goldilocks64Ext {
 
     fn mul_base_elem(&self, rhs: Self::BaseField) -> Self {
         Goldilocks64Ext {
-            v: [self.v[0] + rhs, self.v[1]],
+            v: [self.v[0] * rhs, self.v[1] * rhs],
         }
     }
 

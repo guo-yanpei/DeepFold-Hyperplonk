@@ -7,10 +7,10 @@ pub mod shuffle;
 pub trait CommitmentSerde {
     fn size(&self) -> usize;
     fn serialize_into(&self, buffer: &mut [u8]);
-    fn deserialize_from(buffer: &[u8], var_num: usize) -> Self;
+    fn deserialize_from(proof: &mut Proof, var_num: usize) -> Self;
 }
 
-pub trait PolyCommitProver<F: Field> {
+pub trait PolyCommitProver<F: Field>: Clone {
     type Param: Clone;
     type Commitment: Clone + Debug + Default + CommitmentSerde;
 
@@ -19,7 +19,7 @@ pub trait PolyCommitProver<F: Field> {
     fn open(&self, pp: &Self::Param, point: &[F], transcript: &mut Transcript);
 }
 
-pub trait PolyCommitVerifier<F: Field> {
+pub trait PolyCommitVerifier<F: Field>: Clone {
     type Param: Clone;
     type Commitment: Clone + Debug + Default + CommitmentSerde;
 
@@ -62,16 +62,16 @@ mod tests {
         let commitment = prover.commit();
         let mut buffer = vec![0u8; commitment.size()];
         commitment.serialize_into(&mut buffer);
-
         transcript.append_u8_slice(&buffer, commitment.size());
         transcript.append_f(eval);
         prover.open(&(), &point, &mut transcript);
         let mut proof = transcript.proof;
 
-        let commitment = RawCommitment::deserialize_from(&proof.bytes, 12);
+        let commitment = RawCommitment::deserialize_from(&mut proof, 12);
         let mut transcript = Transcript::new();
-        transcript.append_u8_slice(&proof.bytes, commitment.size());
-        proof.step(commitment.size());
+        let mut buffer = vec![0u8; commitment.size()];
+        commitment.serialize_into(&mut buffer);
+        transcript.append_u8_slice(&buffer, commitment.size());
         let verifier = ShufflePcVerifier::new(&(), commitment);
         let eval = proof.get_next_and_step();
         transcript.append_f(eval);

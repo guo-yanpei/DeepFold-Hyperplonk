@@ -56,6 +56,19 @@ pub trait FftField: Field {
     fn from_fft_base(v: Self::FftBaseField) -> Self;
 }
 
+pub fn batch_inverse<F: Field>(v: &mut [F]) {
+    let mut aux = vec![v[0]];
+    let len = v.len();
+    for i in 1..len {
+        aux.push(aux[i - 1] * v[i]);
+    }
+    let mut prod = aux[len - 1].inv().unwrap();
+    for i in (1..len).rev() {
+        (prod, v[i]) = (prod * v[i], prod * aux[i - 1]);
+    }
+    v[0] = prod;
+}
+
 pub fn as_bytes_vec<F: Field>(v: &[F]) -> Vec<u8> {
     let mut buffer = vec![0; F::SIZE * v.len()];
     let mut cnt = 0;
