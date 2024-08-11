@@ -57,11 +57,33 @@ impl<F: Field, PC: PolyCommitVerifier<F>> Verifier<F, PC> {
         let r_1: F = transcript.challenge_f();
         let r_2: F = transcript.challenge_f();
 
-        let (prod_1, point_1, claim_1) = ProdCheck::verify::<F>(13, &mut transcript, &mut proof);
-        let (prod_2, point_2, claim_2) = ProdCheck::verify::<F>(12, &mut transcript, &mut proof);
-        let (prod_3, point_3, claim_3) = ProdCheck::verify::<F>(13, &mut transcript, &mut proof);
-        let (prod_4, point_4, claim_4) = ProdCheck::verify::<F>(12, &mut transcript, &mut proof);
+        let (prod_1, prod_point1, claim_1) =
+            ProdCheck::verify::<F>(13, &mut transcript, &mut proof);
+        let (prod_2, prod_point2, claim_2) =
+            ProdCheck::verify::<F>(12, &mut transcript, &mut proof);
+        let (prod_3, prod_point3, claim_3) =
+            ProdCheck::verify::<F>(13, &mut transcript, &mut proof);
+        let (prod_4, prod_point4, claim_4) =
+            ProdCheck::verify::<F>(12, &mut transcript, &mut proof);
         assert_eq!(prod_1 * prod_2, prod_3 * prod_4);
+
+        let mut prod_vs = vec![];
+        for _ in 0..9 {
+            let v: F = proof.get_next_and_step();
+            prod_vs.push(v);
+            transcript.append_f(v);
+        }
+        assert_eq!(claim_1, {
+            let tmp1 = prod_vs[0]
+                + r_1
+                + MultiLinearPoly::eval_identical(&prod_point1[..12].to_vec(), F::zero()) * r_2;
+            let tmp2 = prod_vs[1]
+                + r_1
+                + MultiLinearPoly::eval_identical(&prod_point1[..12].to_vec(), F::from(1 << 29))
+                    * r_2;
+            tmp1 + prod_point1[12] * (tmp2 - tmp1)
+        });
+        assert_eq!(claim_2, r_1 + prod_vs[2] + MultiLinearPoly::eval_identical(&prod_point2, F::from(1 << 30)) * r_2);
         true
     }
 }
