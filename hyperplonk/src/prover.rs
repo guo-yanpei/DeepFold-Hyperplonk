@@ -136,6 +136,8 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             &prod_point4,
         ));
 
+        pc_provers[0].open(pp, &prod_point1[..12], &mut transcript);
+
         transcript.proof
     }
 }

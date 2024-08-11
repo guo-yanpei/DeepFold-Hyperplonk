@@ -3,7 +3,6 @@ pub mod prover;
 pub mod verifier;
 mod sumcheck;
 mod prod_check;
-mod perm_check;
 
 #[cfg(test)]
 mod tests {
@@ -45,6 +44,6 @@ mod tests {
             })
             .collect();
         let proof = prover.prove(&(), [a, b, c]);
-        assert!(verifier.verify(proof));
+        assert!(verifier.verify(&(), proof));
     }
 }
