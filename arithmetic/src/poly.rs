@@ -32,6 +32,22 @@ impl<F: Field> MultiLinearPoly<F> {
         res
     }
 
+    pub fn new_identical(var_num: usize, offset: F) -> MultiLinearPoly<F> {
+        MultiLinearPoly {
+            evals: (0..(1 << var_num)).map(|x| F::from(x) + offset).collect(),
+        }
+    }
+
+    pub fn eval_identical(point: &Vec<F>, offset: F) -> F {
+        let mut res = offset + point[0];
+        let mut t = F::BaseField::one();
+        for i in 1..point.len() {
+            t += t;
+            res += point[i].mul_base_elem(t);
+        }
+        res
+    }
+
     pub fn eval_multilinear<FEXT: Field<BaseField = F>>(evals: &Vec<F>, point: &[FEXT]) -> FEXT {
         let mut scratch = vec![];
         let mut cur_eval_size = 1 << (point.len() - 1);
@@ -69,7 +85,10 @@ impl<F: Field> MultiLinearPoly<F> {
 mod tests {
     use rand::thread_rng;
 
-    use crate::field::{goldilocks64::Goldilocks64, Field};
+    use crate::field::{
+        goldilocks64::{Goldilocks64, Goldilocks64Ext},
+        Field,
+    };
 
     use super::MultiLinearPoly;
 
@@ -82,6 +101,12 @@ mod tests {
         assert_eq!(
             MultiLinearPoly::eval_eq(&r, &point),
             MultiLinearPoly::eval_multilinear(&eq_r.evals, &point)
+        );
+        let identical = MultiLinearPoly::new_identical(12, Goldilocks64Ext::zero());
+        let r = (0..12).map(|_| Goldilocks64Ext::random(&mut rng)).collect();
+        assert_eq!(
+            MultiLinearPoly::eval_identical(&r, Goldilocks64Ext::zero()),
+            MultiLinearPoly::eval_multilinear_ext(&identical.evals, &r)
         );
     }
 }

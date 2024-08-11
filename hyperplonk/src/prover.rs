@@ -56,7 +56,12 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
         transcript.append_f(v[0]);
         transcript.append_f(v[1]);
         transcript.append_f(v[2]);
-        transcript.append_f(v[3]);        
+        transcript.append_f(v[3]);
+
+        let r_1: F = transcript.challenge_f();
+        let r_2: F = transcript.challenge_f();
+        
+
 
         transcript.proof
     }
