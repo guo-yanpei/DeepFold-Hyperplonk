@@ -53,8 +53,8 @@ mod tests {
     fn pc_commit_prove_verify() {
         let mut rng = rand::thread_rng();
         let mut transcript = Transcript::new();
-        let poly_evals = (0..4).map(|_| Goldilocks64::random(&mut rng)).collect();
-        let point = (0..2)
+        let poly_evals = (0..4096).map(|_| Goldilocks64::random(&mut rng)).collect();
+        let point = (0..12)
             .map(|_| Goldilocks64Ext::random(&mut rng))
             .collect::<Vec<_>>();
         let eval = MultiLinearPoly::eval_multilinear(&poly_evals, &point);
@@ -67,7 +67,7 @@ mod tests {
         prover.open(&(), &point, &mut transcript);
         let mut proof = transcript.proof;
 
-        let commitment = RawCommitment::deserialize_from(&mut proof, 2);
+        let commitment = RawCommitment::deserialize_from(&mut proof, 12);
         let mut transcript = Transcript::new();
         let mut buffer = vec![0u8; commitment.size()];
         commitment.serialize_into(&mut buffer);

@@ -6,7 +6,7 @@ use crate::sumcheck::Sumcheck;
 pub struct ProdCheck;
 
 impl ProdCheck {
-    fn prove<F: Field>(evals: Vec<F>, transcript: &mut Transcript) -> Vec<F> {
+    pub fn prove<F: Field>(evals: Vec<F>, transcript: &mut Transcript) -> Vec<F> {
         assert_eq!(evals.len() & (evals.len() - 1), 0);
         let var_num = evals.len().ilog2() as usize;
         let mut products = vec![evals];
@@ -46,33 +46,40 @@ impl ProdCheck {
         point
     }
 
-    fn verify<F: Field>(mut y: F, var_num: usize, transcript: &mut Transcript, proof: &mut Proof) -> (Vec<F>, F) {
+    pub fn verify<F: Field>(
+        var_num: usize,
+        transcript: &mut Transcript,
+        proof: &mut Proof,
+    ) -> (F, Vec<F>, F) {
         let mut v0: F = proof.get_next_and_step();
         let mut v1: F = proof.get_next_and_step();
-        assert_eq!(v0 * v1, y);
+        let prod = v0 * v1;
         transcript.append_f(v0);
         transcript.append_f(v1);
         let mut point = vec![transcript.challenge_f::<F>()];
+        let mut y = v0 + (v1 - v0) * point[0];
         for i in 1..var_num {
-            y = v0 + (v1 - v0) * point[0];
-            let (mut new_point, y) = Sumcheck::verify(y, 3, i, transcript, proof);
+            let (mut new_point, new_y) = Sumcheck::verify(y, 3, i, transcript, proof);
             v0 = proof.get_next_and_step();
             v1 = proof.get_next_and_step();
-            assert_eq!(v0 * v1 * MultiLinearPoly::eval_eq(&new_point, &point), y);
+            assert_eq!(v0 * v1 * MultiLinearPoly::eval_eq(&new_point, &point), new_y);
             transcript.append_f(v0);
             transcript.append_f(v1);
             let r = transcript.challenge_f();
             point = vec![r];
             point.append(&mut new_point);
+            y = v0 + (v1 - v0) * r;
         }
-        y = v0 + (v1 - v0) * point[0];
-        (point, y)
+        (prod, point, y)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use arithmetic::{field::{goldilocks64::Goldilocks64Ext, Field}, poly::MultiLinearPoly};
+    use arithmetic::{
+        field::{goldilocks64::Goldilocks64Ext, Field},
+        poly::MultiLinearPoly,
+    };
     use rand::thread_rng;
     use util::fiat_shamir::Transcript;
 
@@ -92,7 +99,8 @@ mod tests {
         let mut proof = transcript.proof;
 
         let mut transcript = Transcript::new();
-        let (new_point, y) = ProdCheck::verify(prod, 12, &mut transcript, &mut proof);
+        let (res, new_point, y) = ProdCheck::verify(12, &mut transcript, &mut proof);
+        assert_eq!(res, prod);
         assert_eq!(point, new_point);
         assert_eq!(MultiLinearPoly::eval_multilinear_ext(&evals, &point), y);
     }

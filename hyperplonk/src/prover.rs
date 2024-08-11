@@ -2,7 +2,7 @@ use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
 
-use crate::sumcheck::Sumcheck;
+use crate::{prod_check::ProdCheck, sumcheck::Sumcheck};
 
 pub struct ProverKey<F: Field, PC: PolyCommitProver<F>> {
     pub selector: MultiLinearPoly<F::BaseField>,
@@ -60,8 +60,44 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
 
         let r_1: F = transcript.challenge_f();
         let r_2: F = transcript.challenge_f();
-        
 
+        let identical = [
+            MultiLinearPoly::new_identical(12, F::BaseField::zero()),
+            MultiLinearPoly::new_identical(12, F::BaseField::from(1 << 29)),
+            MultiLinearPoly::new_identical(12, F::BaseField::from(1 << 30)),
+        ];
+
+        let evals = bookkeeping[0]
+            .iter()
+            .zip(identical[0].evals.iter())
+            .chain(bookkeeping[1].iter().zip(identical[1].evals.iter()))
+            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
+            .collect();
+        ProdCheck::prove(evals, &mut transcript);
+        let evals = bookkeeping[2]
+            .iter()
+            .zip(identical[2].evals.iter())
+            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
+            .collect();
+        ProdCheck::prove(evals, &mut transcript);
+
+        let evals = bookkeeping[0]
+            .iter()
+            .zip(self.prover_key.permutation[0].evals.iter())
+            .chain(
+                bookkeeping[1]
+                    .iter()
+                    .zip(self.prover_key.permutation[1].evals.iter()),
+            )
+            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
+            .collect();
+        ProdCheck::prove(evals, &mut transcript);
+        let evals = bookkeeping[2]
+            .iter()
+            .zip(self.prover_key.permutation[2].evals.iter())
+            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
+            .collect();
+        ProdCheck::prove(evals, &mut transcript);
 
         transcript.proof
     }
