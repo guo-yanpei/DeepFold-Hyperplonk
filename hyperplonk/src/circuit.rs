@@ -21,19 +21,23 @@ impl<F: Field> Circuit<F> {
         pp: &PcProver::Param,
         vp: &PcVerifier::Param,
     ) -> (ProverKey<F, PcProver>, VerifierKey<F, PcVerifier>) {
-        let permutation_provers = self.permutation.clone().map(|x| PcProver::new(pp, &x));
-        let selector_prover = PcProver::new(pp, &self.selector);
+        let pc_prover = PcProver::new(
+            pp,
+            &[
+                self.selector.clone(),
+                self.permutation[0].clone(),
+                self.permutation[1].clone(),
+                self.permutation[2].clone(),
+            ],
+        );
         (
             ProverKey {
                 selector: MultiLinearPoly::new(self.selector.clone()),
-                selector_commitments: selector_prover.clone(),
+                commitments: pc_prover.clone(),
                 permutation: self.permutation.clone().map(|x| MultiLinearPoly::new(x)),
-                permutation_commitments: permutation_provers.clone(),
             },
             VerifierKey {
-                selector_commitment: PcVerifier::new(vp, selector_prover.commit()),
-                permutation_commitments: permutation_provers
-                    .map(|x| PcVerifier::new(vp, x.commit())),
+                commitment: PcVerifier::new(vp, pc_prover.commit()),
                 _data: PhantomData::default(),
             },
         )

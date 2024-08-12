@@ -6,9 +6,8 @@ use crate::{prod_eq_check::ProdEqCheck, sumcheck::Sumcheck};
 
 pub struct ProverKey<F: Field, PC: PolyCommitProver<F>> {
     pub selector: MultiLinearPoly<F::BaseField>,
-    pub selector_commitments: PC,
+    pub commitments: PC,
     pub permutation: [MultiLinearPoly<F::BaseField>; 3],
-    pub permutation_commitments: [PC; 3],
 }
 
 pub struct Prover<F: Field, PC: PolyCommitProver<F>> {
@@ -18,14 +17,12 @@ pub struct Prover<F: Field, PC: PolyCommitProver<F>> {
 impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
     pub fn prove(&self, pp: &PC::Param, nv: usize, witness: [Vec<F::BaseField>; 3]) -> Proof {
         let mut transcript = Transcript::new();
-        let pc_provers = witness.clone().map(|x| PC::new(pp, &x));
+        let pc_provers = PC::new(pp, &witness);
 
-        for i in 0..3 {
-            let commit = pc_provers[i].commit();
-            let mut buffer = vec![0u8; commit.size()];
-            commit.serialize_into(&mut buffer);
-            transcript.append_u8_slice(&buffer, commit.size());
-        }
+        let commit = pc_provers.commit();
+        let mut buffer = vec![0u8; PC::Commitment::size(nv, 3)];
+        commit.serialize_into(&mut buffer);
+        transcript.append_u8_slice(&buffer, PC::Commitment::size(nv, 3));
 
         let bookkeeping = witness
             .clone()
@@ -35,7 +32,7 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .map(|_| transcript.challenge_f::<F>())
             .collect::<Vec<_>>();
         let eq_r = MultiLinearPoly::new_eq(&r);
-        let (_sumcheck_point, v) = Sumcheck::prove(
+        let (sumcheck_point, v) = Sumcheck::prove(
             [
                 self.prover_key
                     .selector
@@ -115,7 +112,29 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             ));
         }
 
-        // pc_provers[0].open(pp, &prod_point1[..12], &mut transcript);
+        PC::open(
+            pp,
+            vec![
+                (
+                    &self.prover_key.commitments,
+                    vec![
+                        vec![sumcheck_point.clone()],
+                        vec![prod_point[..nv].to_vec()],
+                        vec![prod_point[..nv].to_vec()],
+                        vec![prod_point[..nv].to_vec()],
+                    ],
+                ),
+                (
+                    &pc_provers,
+                    vec![
+                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
+                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
+                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
+                    ],
+                ),
+            ],
+            &mut transcript,
+        );
 
         transcript.proof
     }
