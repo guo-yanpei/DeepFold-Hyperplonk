@@ -81,16 +81,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperplonk"
-version = "0.1.0"
-dependencies = [
- "arithmetic",
- "poly_commit",
- "rand",
- "util",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"

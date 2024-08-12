@@ -5,18 +5,22 @@ use util::fiat_shamir::{Proof, Transcript};
 
 pub mod shuffle;
 pub trait CommitmentSerde {
-    fn size(&self) -> usize;
+    fn size(nv: usize, np: usize) -> usize;
     fn serialize_into(&self, buffer: &mut [u8]);
-    fn deserialize_from(proof: &mut Proof, var_num: usize) -> Self;
+    fn deserialize_from(proof: &mut Proof, var_num: usize, poly_num: usize) -> Self;
 }
 
 pub trait PolyCommitProver<F: Field>: Clone {
     type Param: Clone;
     type Commitment: Clone + Debug + Default + CommitmentSerde;
 
-    fn new(pp: &Self::Param, poly: &Vec<F::BaseField>) -> Self;
+    fn new(pp: &Self::Param, poly: &[Vec<F::BaseField>]) -> Self;
     fn commit(&self) -> Self::Commitment;
-    fn open(&self, pp: &Self::Param, point: &[F], transcript: &mut Transcript);
+    fn open(
+        pp: &Self::Param,
+        prover_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
+        transcript: &mut Transcript,
+    );
 }
 
 pub trait PolyCommitVerifier<F: Field>: Clone {
@@ -25,10 +29,9 @@ pub trait PolyCommitVerifier<F: Field>: Clone {
 
     fn new(pp: &Self::Param, commit: Self::Commitment) -> Self;
     fn verify(
-        &self,
         pp: &Self::Param,
-        point: &[F],
-        eval: F,
+        commit_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
+        evals: Vec<Vec<Vec<F>>>,
         transcript: &mut Transcript,
         proof: &mut Proof,
     ) -> bool;
@@ -58,23 +61,33 @@ mod tests {
             .map(|_| Goldilocks64Ext::random(&mut rng))
             .collect::<Vec<_>>();
         let eval = MultiLinearPoly::eval_multilinear(&poly_evals, &point);
-        let prover = ShufflePcProver::new(&(), &poly_evals);
+        let prover = ShufflePcProver::new(&(), &[poly_evals]);
         let commitment = prover.commit();
-        let mut buffer = vec![0u8; commitment.size()];
+        let mut buffer = vec![0u8; RawCommitment::<Goldilocks64Ext>::size(12, 1)];
         commitment.serialize_into(&mut buffer);
-        transcript.append_u8_slice(&buffer, commitment.size());
+        transcript.append_u8_slice(&buffer, RawCommitment::<Goldilocks64Ext>::size(12, 1));
         transcript.append_f(eval);
-        prover.open(&(), &point, &mut transcript);
+        ShufflePcProver::open(
+            &(),
+            vec![(&prover, vec![vec![point.clone()]])],
+            &mut transcript,
+        );
         let mut proof = transcript.proof;
 
-        let commitment = RawCommitment::deserialize_from(&mut proof, 12);
+        let commitment = RawCommitment::deserialize_from(&mut proof, 12, 1);
         let mut transcript = Transcript::new();
-        let mut buffer = vec![0u8; commitment.size()];
+        let mut buffer = vec![0u8; RawCommitment::<Goldilocks64Ext>::size(12, 1)];
         commitment.serialize_into(&mut buffer);
-        transcript.append_u8_slice(&buffer, commitment.size());
+        transcript.append_u8_slice(&buffer, RawCommitment::<Goldilocks64Ext>::size(12, 1));
         let verifier = ShufflePcVerifier::new(&(), commitment);
-        let eval = proof.get_next_and_step();
-        transcript.append_f(eval);
-        assert!(verifier.verify(&(), &point, eval, &mut transcript, &mut proof));
+        let eval = vec![vec![vec![proof.get_next_and_step()]]];
+        transcript.append_f(eval[0][0][0]);
+        assert!(ShufflePcVerifier::verify(
+            &(),
+            vec![(&verifier, vec![vec![point]])],
+            eval,
+            &mut transcript,
+            &mut proof
+        ));
     }
 }
