@@ -35,7 +35,7 @@ impl ProdCheck {
             }
             let (mut new_point, v) =
                 Sumcheck::prove([evals_0, evals_1, eq.evals], 3, transcript, |v: [F; 3]| {
-                    v[0] * v[1] * v[2]
+                    [v[0] * v[1] * v[2]]
                 });
             transcript.append_f(v[0]);
             transcript.append_f(v[1]);
@@ -59,10 +59,13 @@ impl ProdCheck {
         let mut point = vec![transcript.challenge_f::<F>()];
         let mut y = v0 + (v1 - v0) * point[0];
         for i in 1..var_num {
-            let (mut new_point, new_y) = Sumcheck::verify(y, 3, i, transcript, proof);
+            let (mut new_point, new_y) = Sumcheck::verify([y], 3, i, transcript, proof);
             v0 = proof.get_next_and_step();
             v1 = proof.get_next_and_step();
-            assert_eq!(v0 * v1 * MultiLinearPoly::eval_eq(&new_point, &point), new_y);
+            assert_eq!(
+                v0 * v1 * MultiLinearPoly::eval_eq(&new_point, &point),
+                new_y[0]
+            );
             transcript.append_f(v0);
             transcript.append_f(v1);
             let r = transcript.challenge_f();

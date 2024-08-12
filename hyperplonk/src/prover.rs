@@ -50,7 +50,7 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             ],
             4,
             &mut transcript,
-            |v: [F; 5]| v[4] * ((F::one() - v[0]) * (v[1] + v[2]) + v[0] * v[1] * v[2] + v[3]),
+            |v: [F; 5]| [v[4] * ((F::one() - v[0]) * (v[1] + v[2]) + v[0] * v[1] * v[2] + v[3])],
         );
 
         transcript.append_f(v[0]);

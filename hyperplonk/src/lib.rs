@@ -1,8 +1,8 @@
 pub mod circuit;
-pub mod prover;
-pub mod verifier;
-mod sumcheck;
 mod prod_check;
+pub mod prover;
+mod sumcheck;
+pub mod verifier;
 
 #[cfg(test)]
 mod tests {

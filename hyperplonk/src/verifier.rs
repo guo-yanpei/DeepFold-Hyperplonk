@@ -38,7 +38,7 @@ impl<F: Field, PC: PolyCommitVerifier<F>> Verifier<F, PC> {
         let r = (0..12)
             .map(|_| transcript.challenge_f::<F>())
             .collect::<Vec<_>>();
-        let (point, claim_y) = Sumcheck::verify(F::zero(), 4, 12, &mut transcript, &mut proof);
+        let (point, claim_y) = Sumcheck::verify([F::zero()], 4, 12, &mut transcript, &mut proof);
         let claim_s: F = proof.get_next_and_step();
         transcript.append_f(claim_s);
         let claim_w0: F = proof.get_next_and_step();
@@ -49,7 +49,7 @@ impl<F: Field, PC: PolyCommitVerifier<F>> Verifier<F, PC> {
         transcript.append_f(claim_w2);
         let eq_v = MultiLinearPoly::eval_eq(&r, &point);
         assert_eq!(
-            claim_y,
+            claim_y[0],
             eq_v * ((F::one() - claim_s) * (claim_w0 + claim_w1)
                 + claim_s * claim_w0 * claim_w1
                 + claim_w2)
@@ -95,7 +95,13 @@ impl<F: Field, PC: PolyCommitVerifier<F>> Verifier<F, PC> {
             tmp1 + prod_point3[12] * (tmp2 - tmp1)
         });
         assert_eq!(claim_4, r_1 + prod_vs[7] + prod_vs[8] * r_2);
-        witness_0.verify(pp, &prod_point1[..12], prod_vs[0], &mut transcript, &mut proof);
+        witness_0.verify(
+            pp,
+            &prod_point1[..12],
+            prod_vs[0],
+            &mut transcript,
+            &mut proof,
+        );
         true
     }
 }
