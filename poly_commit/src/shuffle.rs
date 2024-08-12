@@ -80,7 +80,7 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
             }
         }
         let r = transcript.challenge_f::<F>();
-        let mut new_len = provers[0].evals[0].len() / 2;
+        let mut new_len = 1 << (nv - 1);
         let mut poly_evals = vec![];
         for i in 0..commit_num {
             let mut commit = vec![];
@@ -112,13 +112,12 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
                 }
             }
             let r = transcript.challenge_f();
-            println!("{} {} {:?}", file!(), line!(), r);
             new_len /= 2;
             for i in 0..commit_num {
                 for j in 0..points[i].len() {
                     for k in 0..new_len {
                         poly_evals[i][j][k] = poly_evals[i][j][k * 2]
-                            + (poly_evals[i][j][k * 2] - poly_evals[i][j][k * 2]) * r;
+                            + (poly_evals[i][j][k * 2 + 1] - poly_evals[i][j][k * 2]) * r;
                     }
                     poly_evals[i][j].truncate(new_len);
                 }
@@ -177,7 +176,6 @@ impl<F: Field> PolyCommitVerifier<F> for ShufflePcVerifier<F> {
                 }
             }
         }
-        println!("{} {} {:?}", file!(), line!(), new_point);
 
         for i in 0..points.len() {
             for j in 0..points[i].len() {
