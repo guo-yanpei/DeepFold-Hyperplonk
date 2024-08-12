@@ -2,7 +2,7 @@ use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
 
-use crate::{prod_check::ProdCheck, sumcheck::Sumcheck};
+use crate::{prod_eq_check::ProdEqCheck, sumcheck::Sumcheck};
 
 pub struct ProverKey<F: Field, PC: PolyCommitProver<F>> {
     pub selector: MultiLinearPoly<F::BaseField>,
@@ -16,7 +16,7 @@ pub struct Prover<F: Field, PC: PolyCommitProver<F>> {
 }
 
 impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
-    pub fn prove(&self, pp: &PC::Param, witness: [Vec<F::BaseField>; 3]) -> Proof {
+    pub fn prove(&self, pp: &PC::Param, nv: usize, witness: [Vec<F::BaseField>; 3]) -> Proof {
         let mut transcript = Transcript::new();
         let pc_provers = witness.clone().map(|x| PC::new(pp, &x));
 
@@ -31,7 +31,7 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .clone()
             .map(|x| x.into_iter().map(|i| F::from(i)).collect::<Vec<_>>());
 
-        let r = (0..12)
+        let r = (0..nv)
             .map(|_| transcript.challenge_f::<F>())
             .collect::<Vec<_>>();
         let eq_r = MultiLinearPoly::new_eq(&r);
@@ -53,90 +53,69 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             |v: [F; 5]| [v[4] * ((F::one() - v[0]) * (v[1] + v[2]) + v[0] * v[1] * v[2] + v[3])],
         );
 
-        transcript.append_f(v[0]);
-        transcript.append_f(v[1]);
-        transcript.append_f(v[2]);
-        transcript.append_f(v[3]);
+        for i in 0..4 {
+            transcript.append_f(v[i]);
+        }
 
-        let r_1: F = transcript.challenge_f();
-        let r_2: F = transcript.challenge_f();
-
-        let identical = [
-            MultiLinearPoly::new_identical(12, F::BaseField::zero()),
-            MultiLinearPoly::new_identical(12, F::BaseField::from(1 << 29)),
-            MultiLinearPoly::new_identical(12, F::BaseField::from(1 << 30)),
-        ];
-
-        let evals = bookkeeping[0]
-            .iter()
-            .zip(identical[0].evals.iter())
-            .chain(bookkeeping[1].iter().zip(identical[1].evals.iter()))
-            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
-            .collect();
-        let prod_point1 = ProdCheck::prove(evals, &mut transcript);
-        let evals = bookkeeping[2]
-            .iter()
-            .zip(identical[2].evals.iter())
-            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
-            .collect();
-        let prod_point2 = ProdCheck::prove(evals, &mut transcript);
-
-        let evals = bookkeeping[0]
-            .iter()
-            .zip(self.prover_key.permutation[0].evals.iter())
+        let witness_flatten = bookkeeping[0]
+            .clone()
+            .into_iter()
+            .chain(bookkeeping[1].clone().into_iter())
+            .chain(bookkeeping[2].clone().into_iter())
+            .chain((0..(1 << nv)).into_iter().map(|_| F::zero()))
+            .collect::<Vec<_>>();
+        let identical = MultiLinearPoly::new_identical(nv, F::BaseField::zero())
+            .evals
+            .into_iter()
             .chain(
-                bookkeeping[1]
-                    .iter()
-                    .zip(self.prover_key.permutation[1].evals.iter()),
+                MultiLinearPoly::new_identical(nv, F::BaseField::from(1 << 29))
+                    .evals
+                    .into_iter(),
             )
-            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
-            .collect();
-        let prod_point3 = ProdCheck::prove(evals, &mut transcript);
-        let evals = bookkeeping[2]
+            .chain(
+                MultiLinearPoly::new_identical(nv, F::BaseField::from(1 << 30))
+                    .evals
+                    .into_iter(),
+            )
+            .chain((0..(1 << nv)).into_iter().map(|_| F::BaseField::zero()))
+            .collect::<Vec<_>>();
+        let permutation = self.prover_key.permutation[0]
+            .clone()
+            .evals
+            .into_iter()
+            .chain(self.prover_key.permutation[1].clone().evals.into_iter())
+            .chain(self.prover_key.permutation[2].clone().evals.into_iter())
+            .chain((0..(1 << nv)).into_iter().map(|_| F::BaseField::zero()))
+            .collect::<Vec<_>>();
+
+        let r = [0; 2].map(|_| transcript.challenge_f::<F>());
+
+        let evals1 = witness_flatten
             .iter()
-            .zip(self.prover_key.permutation[2].evals.iter())
-            .map(|(&x, &y)| r_1 + x + r_2.mul_base_elem(y))
-            .collect();
-        let prod_point4 = ProdCheck::prove(evals, &mut transcript);
+            .zip(identical.iter())
+            .map(|(&x, &y)| r[0] + x + r[1].mul_base_elem(y))
+            .collect::<Vec<_>>();
+        let evals2 = witness_flatten
+            .iter()
+            .zip(permutation.iter())
+            .map(|(&x, &y)| r[0] + x + r[1].mul_base_elem(y))
+            .collect::<Vec<_>>();
+        let prod_point = ProdEqCheck::prove([evals1, evals2], &mut transcript);
 
-        transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
-            &bookkeeping[0],
-            &prod_point1[..12],
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
-            &bookkeeping[1],
-            &prod_point1[..12],
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
-            &bookkeeping[2],
-            &prod_point2,
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
-            &bookkeeping[0],
-            &prod_point3[..12],
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
-            &bookkeeping[1],
-            &prod_point3[..12],
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear(
-            &self.prover_key.permutation[0].evals,
-            &prod_point3[..12],
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear(
-            &self.prover_key.permutation[1].evals,
-            &prod_point3[..12],
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
-            &bookkeeping[2],
-            &prod_point4,
-        ));
-        transcript.append_f(MultiLinearPoly::eval_multilinear(
-            &self.prover_key.permutation[2].evals,
-            &prod_point4,
-        ));
+        for i in 0..3 {
+            transcript.append_f(MultiLinearPoly::eval_multilinear(
+                &witness[i],
+                &prod_point[..nv],
+            ));
+        }
+        for i in 0..3 {
+            transcript.append_f(MultiLinearPoly::eval_multilinear(
+                &self.prover_key.permutation[i].evals,
+                &prod_point[..nv],
+            ));
+        }
 
-        pc_provers[0].open(pp, &prod_point1[..12], &mut transcript);
+        // pc_provers[0].open(pp, &prod_point1[..12], &mut transcript);
 
         transcript.proof
     }

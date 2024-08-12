@@ -1,5 +1,5 @@
 pub mod circuit;
-mod prod_check;
+mod prod_eq_check;
 pub mod prover;
 mod sumcheck;
 pub mod verifier;
@@ -17,7 +17,7 @@ mod tests {
 
     #[test]
     fn snark() {
-        let nv = 12u32;
+        let nv = 13u32;
         let num_gates = 1u32 << nv;
         let mock_circuit = Circuit::<Goldilocks64Ext> {
             permutation: [
@@ -43,7 +43,7 @@ mod tests {
                 -((Goldilocks64::one() - s) * (a[i] + b[i]) + s * a[i] * b[i])
             })
             .collect();
-        let proof = prover.prove(&(), [a, b, c]);
-        assert!(verifier.verify(&(), proof));
+        let proof = prover.prove(&(), nv as usize, [a, b, c]);
+        assert!(verifier.verify(&(), nv as usize, proof));
     }
 }
