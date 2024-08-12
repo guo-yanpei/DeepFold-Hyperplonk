@@ -60,7 +60,7 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
     }
 
     fn open(
-        pp: &Self::Param,
+        _pp: &Self::Param,
         prover_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
         transcript: &mut Transcript,
     ) {
@@ -140,7 +140,7 @@ impl<F: Field> PolyCommitVerifier<F> for ShufflePcVerifier<F> {
     }
 
     fn verify(
-        pp: &Self::Param,
+        _pp: &Self::Param,
         commit_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
         mut evals: Vec<Vec<Vec<F>>>,
         transcript: &mut Transcript,

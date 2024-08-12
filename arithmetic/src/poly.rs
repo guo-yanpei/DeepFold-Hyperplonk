@@ -71,6 +71,7 @@ impl<F: Field> MultiLinearPoly<F> {
     pub fn eval_multilinear_ext(evals: &Vec<F>, point: &[F]) -> F {
         let mut scratch = evals.to_vec();
         let mut cur_eval_size = evals.len() >> 1;
+        assert_eq!(1 << point.len(), evals.len());
         for r in point.iter() {
             for i in 0..cur_eval_size {
                 scratch[i] = scratch[i * 2] + (scratch[i * 2 + 1] - scratch[i * 2]) * (*r);
