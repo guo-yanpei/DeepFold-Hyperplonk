@@ -12,19 +12,19 @@ impl Sumcheck {
         poly_evals.truncate(m)
     }
 
-    pub fn prove<F: Field, const N: usize>(
+    pub fn prove<F: Field, const N: usize, const M: usize>(
         mut evals: [Vec<F>; N],
         degree: usize,
         transcript: &mut Transcript,
-        f: fn([F; N]) -> F,
+        f: fn([F; N]) -> [F; M],
     ) -> (Vec<F>, [F; N]) {
         let var_num = evals[0].len().ilog2() as usize;
         let mut new_point = vec![];
         for i in 0..var_num {
             let m = 1usize << (var_num - i);
-            let sums = (0..m)
-                .step_by(2)
-                .fold(vec![F::zero(); degree + 1], |mut acc, x| {
+            let sums = (0..m).step_by(2).fold(
+                [0; M].map(|_| vec![F::zero(); degree + 1]),
+                |mut acc, x| {
                     let mut extrapolations = vec![];
                     for j in 0..N {
                         let v_0 = evals[j][x];
@@ -36,17 +36,23 @@ impl Sumcheck {
                         }
                         extrapolations.push(e);
                     }
-                    for i in 0..degree + 1 {
-                        let mut res = vec![extrapolations[0][i]];
-                        for j in 1..N {
-                            res.push(extrapolations[j][i]);
+                    for j in 0..degree + 1 {
+                        let mut res = vec![extrapolations[0][j]];
+                        for k in 1..N {
+                            res.push(extrapolations[k][j]);
                         }
-                        acc[i] += f(res.try_into().unwrap());
+                        let tmp = f(res.try_into().unwrap());
+                        for k in 0..M {
+                            acc[k][j] += tmp[k];
+                        }
                     }
                     acc
-                });
-            for j in sums {
-                transcript.append_f(j);
+                },
+            );
+            for j in 0..M {
+                for k in &sums[j] {
+                    transcript.append_f(*k);
+                }
             }
             let challenge = transcript.challenge_f();
             new_point.push(challenge);
@@ -72,7 +78,7 @@ impl Sumcheck {
         res
     }
 
-    fn uni_extrapolate<F: Field>(base: &Vec<F>, v: Vec<F>, x: F) -> F {
+    fn uni_extrapolate<F: Field>(base: &Vec<F>, v: &Vec<F>, x: F) -> F {
         let n = base.len() - 1;
         let mut prod = x;
         for i in 1..n + 1 {
@@ -89,26 +95,33 @@ impl Sumcheck {
         res * prod
     }
 
-    pub fn verify<F: Field>(
-        mut y: F,
+    pub fn verify<F: Field, const M: usize>(
+        mut y: [F; M],
         degree: usize,
         var_num: usize,
         transcript: &mut Transcript,
         proof: &mut Proof,
-    ) -> (Vec<F>, F) {
+    ) -> (Vec<F>, [F; M]) {
         let mut res = vec![];
         let base = Self::init_base(degree);
         for _ in 0..var_num {
-            let mut sums = vec![];
-            for _ in 0..degree + 1 {
-                let x: F = proof.get_next_and_step();
-                sums.push(x);
-                transcript.append_f(x);
+            let sums = [0; M].map(|_| {
+                let mut sum = vec![];
+                for _ in 0..degree + 1 {
+                    let x = proof.get_next_and_step();
+                    transcript.append_f(x);
+                    sum.push(x);
+                }
+                sum
+            });
+            for j in 0..M {
+                assert_eq!(sums[j][0] + sums[j][1], y[j]);
             }
-            assert_eq!(sums[0] + sums[1], y);
-            let challenge = transcript.challenge_f();
+            let challenge: F = transcript.challenge_f();
             res.push(challenge);
-            y = Self::uni_extrapolate(&base, sums, challenge);
+            for j in 0..M {
+                y[j] = Self::uni_extrapolate(&base, &sums[j], challenge);
+            }
         }
         (res, y)
     }
@@ -145,11 +158,17 @@ mod tests {
             [a.clone(), b.clone(), c.clone(), d.clone()],
             3,
             &mut transcript,
-            |v: [Goldilocks64Ext; 4]| (v[0] * v[1] + v[2]) * v[3],
+            |v: [Goldilocks64Ext; 4]| [(v[0] * v[1] + v[2]) * v[3], v[2] * v[2] * v[3]],
         );
-        let y = (0..4096).fold(Goldilocks64Ext::zero(), |acc, x| {
-            acc + (a[x] * b[x] + c[x]) * d[x]
-        });
+        let y = (0..4096).fold(
+            [Goldilocks64Ext::zero(), Goldilocks64Ext::zero()],
+            |acc, x| {
+                [
+                    acc[0] + (a[x] * b[x] + c[x]) * d[x],
+                    acc[1] + c[x] * c[x] * d[x],
+                ]
+            },
+        );
         let mut proof = transcript.proof;
         let mut transcript = Transcript::new();
         let (point, y) = Sumcheck::verify(y, 3, 12, &mut transcript, &mut proof);
@@ -158,7 +177,13 @@ mod tests {
                 * MultiLinearPoly::eval_multilinear_ext(&b, &point)
                 + MultiLinearPoly::eval_multilinear_ext(&c, &point))
                 * MultiLinearPoly::eval_multilinear_ext(&d, &point),
-            y
+            y[0]
+        );
+        assert_eq!(
+            MultiLinearPoly::eval_multilinear_ext(&c, &point)
+                * MultiLinearPoly::eval_multilinear_ext(&c, &point)
+                * MultiLinearPoly::eval_multilinear_ext(&d, &point),
+            y[1]
         );
     }
 }

@@ -36,7 +36,9 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
     type Commitment = RawCommitment<F>;
 
     fn new(_pp: &(), evals: &Vec<F::BaseField>) -> Self {
-        ShufflePcProver { evals: evals.clone() }
+        ShufflePcProver {
+            evals: evals.clone(),
+        }
     }
 
     fn commit(&self) -> Self::Commitment {
@@ -48,10 +50,7 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
     fn open(&self, _pp: &(), point: &[F], transcript: &mut Transcript) {
         let mut new_point = point.to_vec();
         new_point[0].add_assign_base_elem(F::BaseField::one());
-        transcript.append_f(MultiLinearPoly::eval_multilinear(
-            &self.evals,
-            &new_point,
-        ));
+        transcript.append_f(MultiLinearPoly::eval_multilinear(&self.evals, &new_point));
         let r = transcript.challenge_f::<F>();
         let new_len = self.evals.len() / 2;
         let mut poly_evals = vec![];
