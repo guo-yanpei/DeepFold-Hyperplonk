@@ -23,7 +23,7 @@ impl<F: Field, PC: PolyCommitVerifier<F>> Verifier<F, PC> {
         let mut buffer = vec![0u8; witness_0.size()];
         witness_0.serialize_into(&mut buffer);
         transcript.append_u8_slice(&buffer, witness_0.size());
-        let witness_0 = PC::new(pp, witness_0);
+        let _witness_0 = PC::new(pp, witness_0);
 
         let witness_1 = PC::Commitment::deserialize_from(&mut proof, nv);
         let mut buffer = vec![0u8; witness_1.size()];

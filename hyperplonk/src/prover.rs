@@ -35,7 +35,7 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .map(|_| transcript.challenge_f::<F>())
             .collect::<Vec<_>>();
         let eq_r = MultiLinearPoly::new_eq(&r);
-        let (sumcheck_point, v) = Sumcheck::prove(
+        let (_sumcheck_point, v) = Sumcheck::prove(
             [
                 self.prover_key
                     .selector
