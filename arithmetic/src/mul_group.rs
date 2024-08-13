@@ -78,7 +78,8 @@ impl<F: FftField> Radix2Group<F> {
         }
     }
 
-    pub fn fft(&self, mut coeff: Vec<F>) -> Vec<F> {
+    pub fn fft(&self, coeff: Vec<F::BaseField>) -> Vec<F> {
+        let mut coeff = coeff.into_iter().map(|x| F::from(x)).collect::<Vec<_>>();
         let padding_zero = self.size() - coeff.len();
         for _ in 0..padding_zero {
             coeff.push(F::zero());
@@ -111,12 +112,12 @@ mod tests {
         let mut b = vec![];
         let mut rng = rand::thread_rng();
         for _i in 0..16 {
-            a.push(Goldilocks64Ext::random(&mut rng));
-            b.push(Goldilocks64Ext::random(&mut rng));
+            a.push(Goldilocks64::random(&mut rng));
+            b.push(Goldilocks64::random(&mut rng));
         }
         for _i in 16..32 {
-            a.push(Goldilocks64Ext::zero());
-            b.push(Goldilocks64Ext::zero());
+            a.push(Goldilocks64::zero());
+            b.push(Goldilocks64::zero());
         }
         let mul_group = Radix2Group::new(5);
         let mut fft_a = mul_group.fft(a.clone());
@@ -127,7 +128,7 @@ mod tests {
         let fft_a_times_b = mul_group.ifft(fft_a);
         let mut a_times_b = vec![];
         for _i in 0..32 {
-            a_times_b.push(Goldilocks64Ext::zero());
+            a_times_b.push(Goldilocks64::zero());
         }
         for i in 0..16usize {
             for j in 0..16usize {

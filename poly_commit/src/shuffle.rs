@@ -130,7 +130,7 @@ impl<F: Field> PolyCommitVerifier<F> for ShufflePcVerifier<F> {
     type Param = ();
     type Commitment = RawCommitment<F>;
 
-    fn new(_pp: &Self::Param, commit: Self::Commitment) -> Self {
+    fn new(_pp: &Self::Param, commit: Self::Commitment, poly_num: usize) -> Self {
         ShufflePcVerifier { commit }
     }
 

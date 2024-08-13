@@ -37,7 +37,7 @@ impl<F: Field> Circuit<F> {
                 permutation: self.permutation.clone().map(|x| MultiLinearPoly::new(x)),
             },
             VerifierKey {
-                commitment: PcVerifier::new(vp, pc_prover.commit()),
+                commitment: PcVerifier::new(vp, pc_prover.commit(), 4),
                 _data: PhantomData::default(),
             },
         )

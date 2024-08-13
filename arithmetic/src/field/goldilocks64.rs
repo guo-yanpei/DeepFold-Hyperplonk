@@ -194,9 +194,6 @@ impl FftField for Goldilocks64 {
         v: 2741030659394132017u64,
     };
     type FftBaseField = Goldilocks64;
-    fn from_fft_base(v: Self::FftBaseField) -> Self {
-        v
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -408,9 +405,4 @@ impl FftField for Goldilocks64Ext {
         ],
     };
     type FftBaseField = Goldilocks64;
-    fn from_fft_base(v: Self::FftBaseField) -> Self {
-        Goldilocks64Ext {
-            v: [v, Goldilocks64::zero()],
-        }
-    }
 }

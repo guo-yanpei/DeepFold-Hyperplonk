@@ -49,11 +49,10 @@ pub trait Field:
     fn deserialize_from(buffer: &[u8]) -> Self;
 }
 
-pub trait FftField: Field {
+pub trait FftField: Field + From<Self::FftBaseField> {
     const LOG_ORDER: u32;
     const ROOT_OF_UNITY: Self;
-    type FftBaseField: FftField;
-    fn from_fft_base(v: Self::FftBaseField) -> Self;
+    type FftBaseField: FftField<BaseField = Self::BaseField>;
 }
 
 pub fn batch_inverse<F: Field>(v: &mut [F]) {

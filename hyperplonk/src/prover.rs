@@ -1,5 +1,3 @@
-
-
 use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
