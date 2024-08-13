@@ -115,73 +115,69 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
         }
 
         let r: F = transcript.challenge_f();
-        Sumcheck::prove(
+        let r2 = r * r;
+        let r3 = r2 * r;
+        let r4 = r3 * r;
+        let r5 = r4 * r;
+        let (point, _) = Sumcheck::prove(
             [
                 self.prover_key
                     .selector
                     .evals
                     .iter()
-                    .map(|x| F::from(*x))
+                    .zip(witness[0].iter())
+                    .zip(witness[1].iter())
+                    .zip(witness[2].iter())
+                    .map(|(((&x1, &x2), &x3), &x4)| {
+                        F::from(x1)
+                            + r.mul_base_elem(x2)
+                            + r2.mul_base_elem(x3)
+                            + r3.mul_base_elem(x4)
+                    })
                     .collect(),
                 self.prover_key.permutation[0]
                     .evals
                     .iter()
-                    .map(|x| F::from(*x))
+                    .zip(self.prover_key.permutation[1].evals.iter())
+                    .zip(self.prover_key.permutation[2].evals.iter())
+                    .zip(witness[0].iter())
+                    .zip(witness[1].iter())
+                    .zip(witness[2].iter())
+                    .map(|(((((&x1, &x2), &x3), &x4), &x5), &x6)| {
+                        F::from(x1)
+                            + r.mul_base_elem(x2)
+                            + r2.mul_base_elem(x3)
+                            + r3.mul_base_elem(x4)
+                            + r4.mul_base_elem(x5)
+                            + r5.mul_base_elem(x6)
+                    })
                     .collect(),
-                self.prover_key.permutation[1]
-                    .evals
-                    .iter()
-                    .map(|x| F::from(*x))
-                    .collect(),
-                self.prover_key.permutation[2]
-                    .evals
-                    .iter()
-                    .map(|x| F::from(*x))
-                    .collect(),
-                bookkeeping[0].clone(),
-                bookkeeping[1].clone(),
-                bookkeeping[2].clone(),
                 MultiLinearPoly::new_eq(&sumcheck_point).evals,
                 MultiLinearPoly::new_eq(&prod_point[..nv].to_vec()).evals,
             ],
             2,
             &mut transcript,
-            |v: [F; 9]| {
-                [
-                    v[0] * v[7],
-                    v[4] * v[7],
-                    v[5] * v[7],
-                    v[6] * v[7],
-                    v[1] * v[8],
-                    v[2] * v[8],
-                    v[3] * v[8],
-                    v[5] * v[8],
-                ]
-            },
+            |v: [F; 4]| [v[0] * v[2], v[1] * v[3]],
         );
-        // PC::open(
-        //     pp,
-        //     vec![
-        //         (
-        //             &self.prover_key.commitments,
-        //             vec![
-        //                 vec![sumcheck_point.clone()],
-        //                 vec![prod_point[..nv].to_vec()],
-        //                 vec![prod_point[..nv].to_vec()],
-        //                 vec![prod_point[..nv].to_vec()],
-        //             ],
-        //         ),
-        //         (
-        //             &witness_pc,
-        //             vec![
-        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-        //             ],
-        //         ),
-        //     ],
-        //     &mut transcript,
-        // );
+        transcript.append_f(MultiLinearPoly::eval_multilinear(
+            &self.prover_key.selector.evals,
+            &point,
+        ));
+        for i in 0..3 {
+            transcript.append_f(MultiLinearPoly::eval_multilinear(
+                &self.prover_key.permutation[i].evals,
+                &point,
+            ));
+        }
+        for i in 0..3 {
+            transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[i], &point));
+        }
+        PC::open(
+            pp,
+            vec![&self.prover_key.commitments, &witness_pc],
+            point,
+            &mut transcript,
+        );
 
         transcript.proof
     }

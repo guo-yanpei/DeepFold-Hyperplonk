@@ -89,43 +89,56 @@ impl<F: Field, PC: PolyCommitVerifier<F>> Verifier<F, PC> {
             ];
             MultiLinearPoly::eval_multilinear_ext(&v, &prod_point[nv..])
         });
-        // PC::verify(
-        //     pp,
-        //     vec![
-        //         (
-        //             &self.verifier_key.commitment,
-        //             vec![
-        //                 vec![sumcheck_point.clone()],
-        //                 vec![prod_point[..nv].to_vec()],
-        //                 vec![prod_point[..nv].to_vec()],
-        //                 vec![prod_point[..nv].to_vec()],
-        //             ],
-        //         ),
-        //         (
-        //             &witness_pc,
-        //             vec![
-        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-        //             ],
-        //         ),
-        //     ],
-        //     vec![
-        //         vec![
-        //             vec![claim_s],
-        //             vec![perm_eval[0]],
-        //             vec![perm_eval[1]],
-        //             vec![perm_eval[2]],
-        //         ],
-        //         vec![
-        //             vec![claim_w0, witness_eval[0]],
-        //             vec![claim_w1, witness_eval[1]],
-        //             vec![claim_w2, witness_eval[2]],
-        //         ],
-        //     ],
-        //     &mut transcript,
-        //     &mut proof,
-        // );
+        let r: F = transcript.challenge_f();
+        let (point, y) = Sumcheck::verify(
+            [
+                claim_s + r * (claim_w0 + r * (claim_w1 + r * claim_w2)),
+                perm_eval[0]
+                    + r * (perm_eval[1]
+                        + r * (perm_eval[2]
+                            + r * (witness_eval[0] + r * (witness_eval[1] + r * witness_eval[2])))),
+            ],
+            2,
+            nv,
+            &mut transcript,
+            &mut proof,
+        );
+        let claim_s: F = proof.get_next_and_step();
+        transcript.append_f(claim_s);
+        let perm_eval = [0; 3].map(|_| {
+            let x: F = proof.get_next_and_step();
+            transcript.append_f(x);
+            x
+        });
+        let witness_eval = [0; 3].map(|_| {
+            let x: F = proof.get_next_and_step();
+            transcript.append_f(x);
+            x
+        });
+        assert_eq!(
+            y[0],
+            (claim_s + r * (witness_eval[0] + r * (witness_eval[1] + r * witness_eval[2])))
+                * MultiLinearPoly::eval_eq(&sumcheck_point, &point)
+        );
+        assert_eq!(
+            y[1],
+            (perm_eval[0]
+                + r * (perm_eval[1]
+                    + r * (perm_eval[2]
+                        + r * (witness_eval[0] + r * (witness_eval[1] + r * witness_eval[2])))))
+                * MultiLinearPoly::eval_eq(&prod_point[..nv].to_vec(), &point)
+        );
+        PC::verify(
+            pp,
+            vec![&self.verifier_key.commitment, &witness_pc],
+            point,
+            vec![
+                vec![claim_s, perm_eval[0], perm_eval[1], perm_eval[2]],
+                vec![witness_eval[0], witness_eval[1], witness_eval[2]],
+            ],
+            &mut transcript,
+            &mut proof,
+        );
         true
     }
 }
