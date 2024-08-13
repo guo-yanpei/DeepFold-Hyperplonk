@@ -1,4 +1,4 @@
-use std::iter::Sum;
+
 
 use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
