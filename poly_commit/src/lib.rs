@@ -16,11 +16,7 @@ pub trait PolyCommitProver<F: Field>: Clone {
 
     fn new(pp: &Self::Param, poly: &[Vec<F::BaseField>]) -> Self;
     fn commit(&self) -> Self::Commitment;
-    fn open(
-        pp: &Self::Param,
-        prover_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
-        transcript: &mut Transcript,
-    );
+    fn open(pp: &Self::Param, provers: Vec<&Self>, point: Vec<F>, transcript: &mut Transcript);
 }
 
 pub trait PolyCommitVerifier<F: Field>: Clone {
@@ -30,8 +26,9 @@ pub trait PolyCommitVerifier<F: Field>: Clone {
     fn new(pp: &Self::Param, commit: Self::Commitment) -> Self;
     fn verify(
         pp: &Self::Param,
-        commit_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
-        evals: Vec<Vec<Vec<F>>>,
+        commits: Vec<&Self>,
+        point: Vec<F>,
+        evals: Vec<Vec<F>>,
         transcript: &mut Transcript,
         proof: &mut Proof,
     ) -> bool;
@@ -67,11 +64,7 @@ mod tests {
         commitment.serialize_into(&mut buffer);
         transcript.append_u8_slice(&buffer, RawCommitment::<Goldilocks64Ext>::size(12, 1));
         transcript.append_f(eval);
-        ShufflePcProver::open(
-            &(),
-            vec![(&prover, vec![vec![point.clone()]])],
-            &mut transcript,
-        );
+        ShufflePcProver::open(&(), vec![&prover], point.clone(), &mut transcript);
         let mut proof = transcript.proof;
 
         let commitment = RawCommitment::deserialize_from(&mut proof, 12, 1);
@@ -80,11 +73,12 @@ mod tests {
         commitment.serialize_into(&mut buffer);
         transcript.append_u8_slice(&buffer, RawCommitment::<Goldilocks64Ext>::size(12, 1));
         let verifier = ShufflePcVerifier::new(&(), commitment);
-        let eval = vec![vec![vec![proof.get_next_and_step()]]];
-        transcript.append_f(eval[0][0][0]);
+        let eval = vec![vec![proof.get_next_and_step()]];
+        transcript.append_f(eval[0][0]);
         assert!(ShufflePcVerifier::verify(
             &(),
-            vec![(&verifier, vec![vec![point]])],
+            vec![(&verifier)],
+            point,
             eval,
             &mut transcript,
             &mut proof

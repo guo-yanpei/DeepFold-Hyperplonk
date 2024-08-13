@@ -1,3 +1,5 @@
+
+
 use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
@@ -17,9 +19,9 @@ pub struct Prover<F: Field, PC: PolyCommitProver<F>> {
 impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
     pub fn prove(&self, pp: &PC::Param, nv: usize, witness: [Vec<F::BaseField>; 3]) -> Proof {
         let mut transcript = Transcript::new();
-        let pc_provers = PC::new(pp, &witness);
+        let witness_pc = PC::new(pp, &witness);
 
-        let commit = pc_provers.commit();
+        let commit = witness_pc.commit();
         let mut buffer = vec![0u8; PC::Commitment::size(nv, 3)];
         commit.serialize_into(&mut buffer);
         transcript.append_u8_slice(&buffer, PC::Commitment::size(nv, 3));
@@ -112,27 +114,68 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             ));
         }
 
+        let r: F = transcript.challenge_f();
+        let r2 = r * r;
+        let r3 = r2 * r;
+        let r4 = r3 * r;
+        let r5 = r4 * r;
+        let (point, _) = Sumcheck::prove(
+            [
+                self.prover_key
+                    .selector
+                    .evals
+                    .iter()
+                    .zip(witness[0].iter())
+                    .zip(witness[1].iter())
+                    .zip(witness[2].iter())
+                    .map(|(((&x1, &x2), &x3), &x4)| {
+                        F::from(x1)
+                            + r.mul_base_elem(x2)
+                            + r2.mul_base_elem(x3)
+                            + r3.mul_base_elem(x4)
+                    })
+                    .collect(),
+                self.prover_key.permutation[0]
+                    .evals
+                    .iter()
+                    .zip(self.prover_key.permutation[1].evals.iter())
+                    .zip(self.prover_key.permutation[2].evals.iter())
+                    .zip(witness[0].iter())
+                    .zip(witness[1].iter())
+                    .zip(witness[2].iter())
+                    .map(|(((((&x1, &x2), &x3), &x4), &x5), &x6)| {
+                        F::from(x1)
+                            + r.mul_base_elem(x2)
+                            + r2.mul_base_elem(x3)
+                            + r3.mul_base_elem(x4)
+                            + r4.mul_base_elem(x5)
+                            + r5.mul_base_elem(x6)
+                    })
+                    .collect(),
+                MultiLinearPoly::new_eq(&sumcheck_point).evals,
+                MultiLinearPoly::new_eq(&prod_point[..nv].to_vec()).evals,
+            ],
+            2,
+            &mut transcript,
+            |v: [F; 4]| [v[0] * v[2], v[1] * v[3]],
+        );
+        transcript.append_f(MultiLinearPoly::eval_multilinear(
+            &self.prover_key.selector.evals,
+            &point,
+        ));
+        for i in 0..3 {
+            transcript.append_f(MultiLinearPoly::eval_multilinear(
+                &self.prover_key.permutation[i].evals,
+                &point,
+            ));
+        }
+        for i in 0..3 {
+            transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[i], &point));
+        }
         PC::open(
             pp,
-            vec![
-                (
-                    &self.prover_key.commitments,
-                    vec![
-                        vec![sumcheck_point.clone()],
-                        vec![prod_point[..nv].to_vec()],
-                        vec![prod_point[..nv].to_vec()],
-                        vec![prod_point[..nv].to_vec()],
-                    ],
-                ),
-                (
-                    &pc_provers,
-                    vec![
-                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-                    ],
-                ),
-            ],
+            vec![&self.prover_key.commitments, &witness_pc],
+            point,
             &mut transcript,
         );
 
