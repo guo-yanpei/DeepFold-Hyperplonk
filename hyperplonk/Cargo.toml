@@ -10,3 +10,7 @@ arithmetic = { path = "../arithmetic" }
 poly_commit = { path = "../poly_commit" }
 util = { path = "../util" }
 rand = "0.8.5"
+
+[[bench]]
+name = "mock"
+harness = false
