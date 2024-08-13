@@ -12,11 +12,11 @@ impl Sumcheck {
         poly_evals.truncate(m)
     }
 
-    pub fn prove<F: Field, const N: usize, const M: usize>(
+    pub fn prove<F: Field, const N: usize, const M: usize, FUNC: Fn([F; N]) -> [F; M]>(
         mut evals: [Vec<F>; N],
         degree: usize,
         transcript: &mut Transcript,
-        f: fn([F; N]) -> [F; M],
+        f: FUNC,
     ) -> (Vec<F>, [F; N]) {
         let var_num = evals[0].len().ilog2() as usize;
         let mut new_point = vec![];

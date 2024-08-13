@@ -61,22 +61,19 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
 
     fn open(
         _pp: &Self::Param,
-        prover_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
+        provers: Vec<&Self>,
+        mut point: Vec<F>,
         transcript: &mut Transcript,
     ) {
-        let provers = prover_point.iter().map(|x| x.0).collect::<Vec<_>>();
-        let mut points = prover_point.into_iter().map(|x| x.1).collect::<Vec<_>>();
-        let commit_num = points.len();
-        let nv = points[0][0][0].len();
+        let commit_num = provers.len();
+        let nv = point.len();
+        point[0].add_assign_base_elem(F::BaseField::one());
         for i in 0..commit_num {
-            for j in 0..points[i].len() {
-                for k in 0..points[i][j].len() {
-                    points[i][j][k][0].add_assign_base_elem(F::BaseField::one());
-                    transcript.append_f(MultiLinearPoly::eval_multilinear(
-                        &provers[i].evals[j],
-                        &points[i][j][k],
-                    ));
-                }
+            for j in 0..provers[i].evals.len() {
+                transcript.append_f(MultiLinearPoly::eval_multilinear(
+                    &provers[i].evals[j],
+                    &point,
+                ));
             }
         }
         let r = transcript.challenge_f::<F>();
@@ -84,7 +81,7 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
         let mut poly_evals = vec![];
         for i in 0..commit_num {
             let mut commit = vec![];
-            for j in 0..points[i].len() {
+            for j in 0..provers[i].evals.len() {
                 let mut poly = vec![];
                 for k in 0..new_len {
                     poly.push(
@@ -100,21 +97,19 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
         }
 
         for s in 1..nv {
+            point[s].add_assign_base_elem(F::BaseField::one());
             for i in 0..commit_num {
-                for j in 0..points[i].len() {
-                    for k in 0..points[i][j].len() {
-                        points[i][j][k][s].add_assign_base_elem(F::BaseField::one());
-                        transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
-                            &poly_evals[i][j],
-                            &points[i][j][k][s..].to_vec(),
-                        ));
-                    }
+                for j in 0..provers[i].evals.len() {
+                    transcript.append_f(MultiLinearPoly::eval_multilinear_ext(
+                        &poly_evals[i][j],
+                        &point[s..].to_vec(),
+                    ));
                 }
             }
             let r = transcript.challenge_f();
             new_len /= 2;
             for i in 0..commit_num {
-                for j in 0..points[i].len() {
+                for j in 0..provers[i].evals.len() {
                     for k in 0..new_len {
                         poly_evals[i][j][k] = poly_evals[i][j][k * 2]
                             + (poly_evals[i][j][k * 2 + 1] - poly_evals[i][j][k * 2]) * r;
@@ -141,53 +136,44 @@ impl<F: Field> PolyCommitVerifier<F> for ShufflePcVerifier<F> {
 
     fn verify(
         _pp: &Self::Param,
-        commit_point: Vec<(&Self, Vec<Vec<Vec<F>>>)>,
-        mut evals: Vec<Vec<Vec<F>>>,
+        verifiers: Vec<&Self>,
+        point: Vec<F>,
+        mut evals: Vec<Vec<F>>,
         transcript: &mut Transcript,
         proof: &mut Proof,
     ) -> bool {
-        let verifiers = commit_point.iter().map(|x| x.0).collect::<Vec<_>>();
-        let points = commit_point.into_iter().map(|x| x.1).collect::<Vec<_>>();
         let mut new_point = vec![];
-        let nv = points[0][0][0].len();
+        let nv = point.len();
         for s in 0..nv {
             let mut next_evals = vec![];
-            for i in 0..points.len() {
-                let mut commit = vec![];
-                for j in 0..points[i].len() {
-                    let mut poly = vec![];
-                    for _ in 0..points[i][j].len() {
-                        let e = proof.get_next_and_step::<F>();
-                        transcript.append_f(e);
-                        poly.push(e);
-                    }
-                    commit.push(poly);
+            for i in 0..evals.len() {
+                let mut poly = vec![];
+                for _ in 0..evals[i].len() {
+                    let e = proof.get_next_and_step::<F>();
+                    transcript.append_f(e);
+                    poly.push(e);
                 }
-                next_evals.push(commit);
+                next_evals.push(poly);
             }
             let r: F = transcript.challenge_f();
             new_point.push(r);
-            for i in 0..points.len() {
-                for j in 0..points[i].len() {
-                    for k in 0..points[i][j].len() {
-                        let e = evals[i][j][k];
-                        evals[i][j][k] += (r - points[i][j][k][s]) * (next_evals[i][j][k] - e);
-                    }
+            for i in 0..evals.len() {
+                for j in 0..evals[i].len() {
+                    let e = evals[i][j];
+                    evals[i][j] += (r - point[s]) * (next_evals[i][j] - e);
                 }
             }
         }
 
-        for i in 0..points.len() {
-            for j in 0..points[i].len() {
-                for k in 0..points[i][j].len() {
-                    assert_eq!(
-                        evals[i][j][k],
-                        MultiLinearPoly::eval_multilinear(
-                            &verifiers[i].commit.poly_evals[j],
-                            &new_point
-                        )
-                    );
-                }
+        for i in 0..evals.len() {
+            for j in 0..evals[i].len() {
+                assert_eq!(
+                    evals[i][j],
+                    MultiLinearPoly::eval_multilinear(
+                        &verifiers[i].commit.poly_evals[j],
+                        &new_point
+                    )
+                );
             }
         }
 

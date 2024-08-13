@@ -9,3 +9,4 @@ edition = "2021"
 arithmetic = { path = "../arithmetic" }
 util = { path = "../util" }
 rand = "0.8.5"
+rs_merkle = "1.3"

@@ -1,3 +1,5 @@
+use std::iter::Sum;
+
 use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
@@ -17,9 +19,9 @@ pub struct Prover<F: Field, PC: PolyCommitProver<F>> {
 impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
     pub fn prove(&self, pp: &PC::Param, nv: usize, witness: [Vec<F::BaseField>; 3]) -> Proof {
         let mut transcript = Transcript::new();
-        let pc_provers = PC::new(pp, &witness);
+        let witness_pc = PC::new(pp, &witness);
 
-        let commit = pc_provers.commit();
+        let commit = witness_pc.commit();
         let mut buffer = vec![0u8; PC::Commitment::size(nv, 3)];
         commit.serialize_into(&mut buffer);
         transcript.append_u8_slice(&buffer, PC::Commitment::size(nv, 3));
@@ -112,29 +114,74 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             ));
         }
 
-        PC::open(
-            pp,
-            vec![
-                (
-                    &self.prover_key.commitments,
-                    vec![
-                        vec![sumcheck_point.clone()],
-                        vec![prod_point[..nv].to_vec()],
-                        vec![prod_point[..nv].to_vec()],
-                        vec![prod_point[..nv].to_vec()],
-                    ],
-                ),
-                (
-                    &pc_provers,
-                    vec![
-                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-                        vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
-                    ],
-                ),
+        let r: F = transcript.challenge_f();
+        Sumcheck::prove(
+            [
+                self.prover_key
+                    .selector
+                    .evals
+                    .iter()
+                    .map(|x| F::from(*x))
+                    .collect(),
+                self.prover_key.permutation[0]
+                    .evals
+                    .iter()
+                    .map(|x| F::from(*x))
+                    .collect(),
+                self.prover_key.permutation[1]
+                    .evals
+                    .iter()
+                    .map(|x| F::from(*x))
+                    .collect(),
+                self.prover_key.permutation[2]
+                    .evals
+                    .iter()
+                    .map(|x| F::from(*x))
+                    .collect(),
+                bookkeeping[0].clone(),
+                bookkeeping[1].clone(),
+                bookkeeping[2].clone(),
+                MultiLinearPoly::new_eq(&sumcheck_point).evals,
+                MultiLinearPoly::new_eq(&prod_point[..nv].to_vec()).evals,
             ],
+            2,
             &mut transcript,
+            |v: [F; 9]| {
+                [
+                    v[0] * v[7],
+                    v[4] * v[7],
+                    v[5] * v[7],
+                    v[6] * v[7],
+                    v[1] * v[8],
+                    v[2] * v[8],
+                    v[3] * v[8],
+                    v[5] * v[8],
+                ]
+            },
         );
+        // PC::open(
+        //     pp,
+        //     vec![
+        //         (
+        //             &self.prover_key.commitments,
+        //             vec![
+        //                 vec![sumcheck_point.clone()],
+        //                 vec![prod_point[..nv].to_vec()],
+        //                 vec![prod_point[..nv].to_vec()],
+        //                 vec![prod_point[..nv].to_vec()],
+        //             ],
+        //         ),
+        //         (
+        //             &witness_pc,
+        //             vec![
+        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
+        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
+        //                 vec![sumcheck_point.clone(), prod_point[..nv].to_vec()],
+        //             ],
+        //         ),
+        //     ],
+        //     &mut transcript,
+        // );
 
         transcript.proof
     }
