@@ -10,3 +10,7 @@ arithmetic = { path = "../arithmetic" }
 util = { path = "../util" }
 rand = "0.8.5"
 rs_merkle = "1.3"
+
+[[bench]]
+name = "deepfold"
+harness = false

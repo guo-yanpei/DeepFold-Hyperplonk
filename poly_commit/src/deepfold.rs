@@ -10,7 +10,7 @@ use util::{
     merkle_tree::{MerkleTreeProver, MerkleTreeVerifier, HASH_SIZE},
 };
 
-use crate::{ImprovedPolyCommitProver, Transcript};
+use crate::Transcript;
 
 use super::{CommitmentSerde, PolyCommitProver, PolyCommitVerifier};
 
@@ -253,25 +253,25 @@ impl<F: FftField> PolyCommitProver<F> for DeepFoldProver<F> {
     }
 }
 
-impl<F: FftField> ImprovedSinglePolyCommitProver<F> for DeepFoldProver<F> {
-    fn new(pp: &Self::Param, poly: Vec<F::BaseField>) -> Self {
-        if len(poly) <= 3 {
-            return super::new(pp, vec![poly])
-        }
-        let mut polys = vec![];
-        for i in (0..8) {
-            polys.push(local_eval_polynomial(&poly, i))
-        }
-        super::new(pp, polys)
-    }
-}
+// impl<F: FftField> ImprovedSinglePolyCommitProver<F> for DeepFoldProver<F> {
+//     fn new(pp: &Self::Param, poly: Vec<F::BaseField>) -> Self {
+//         if len(poly) <= 3 {
+//             return super::new(pp, vec![poly])
+//         }
+//         let mut polys = vec![];
+//         for i in (0..8) {
+//             polys.push(local_eval_polynomial(&poly, i))
+//         }
+//         super::new(pp, polys)
+//     }
+// }
 
-fn local_eval_polynomial(poly: &[F::BaseField], local_point: u8) -> Vec<F::BaseField> {
-    poly.iter()
-    .enumerate()
-    .map(|(ind, x)| if(ind&0b111 == local_point as usize) {*x} else {F::BaseField::zero()})
-    .collect()
-}
+// fn local_eval_polynomial(poly: &[F::BaseField], local_point: u8) -> Vec<F::BaseField> {
+//     poly.iter()
+//     .enumerate()
+//     .map(|(ind, x)| if(ind&0b111 == local_point as usize) {*x} else {F::BaseField::zero()})
+//     .collect()
+// }
 
 #[derive(Clone)]
 pub struct DeepFoldVerifier<F: FftField> {
