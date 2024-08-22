@@ -20,6 +20,10 @@ pub trait PolyCommitProver<F: Field>: Clone {
     fn open(pp: &Self::Param, provers: Vec<&Self>, point: Vec<F>, transcript: &mut Transcript);
 }
 
+pub trait ImprovedSinglePolyCommitProver<F: Field>: PolyCommitProver+Clone {
+    fn new(pp: &Self::Param, poly: &[Vec<F::BaseField>]) -> Self;
+}
+
 pub trait PolyCommitVerifier<F: Field>: Clone {
     type Param: Clone;
     type Commitment: Clone + Debug + Default + CommitmentSerde;
