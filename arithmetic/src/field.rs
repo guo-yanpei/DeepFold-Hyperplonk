@@ -3,9 +3,11 @@ use std::{
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
+use ark_ec::pairing::Pairing;
 use rand::RngCore;
 
 pub mod goldilocks64;
+pub mod bn_254;
 
 pub trait Field:
     Copy
@@ -25,7 +27,6 @@ pub trait Field:
 {
     const NAME: &'static str;
     const SIZE: usize;
-    const INV_2: Self;
     type BaseField: Field;
 
     fn zero() -> Self;
@@ -35,6 +36,7 @@ pub trait Field:
     fn square(&self) -> Self {
         self.clone() * self.clone()
     }
+    fn inv_2() -> Self;
     fn double(&self) -> Self {
         self.clone() + self.clone()
     }
@@ -53,6 +55,10 @@ pub trait FftField: Field + From<Self::FftBaseField> {
     const LOG_ORDER: u32;
     const ROOT_OF_UNITY: Self;
     type FftBaseField: FftField<BaseField = Self::BaseField>;
+}
+
+pub trait PairingField: Field {
+    type E: Pairing;
 }
 
 pub fn batch_inverse<F: Field>(v: &mut [F]) {
@@ -77,3 +83,21 @@ pub fn as_bytes_vec<F: Field>(v: &[F]) -> Vec<u8> {
     }
     buffer
 }
+
+#[cfg(test)]
+mod tests {
+    use rand::thread_rng;
+
+    use super::{bn_254::Bn254_f, Field};
+
+    #[test]
+    fn eq() {
+        let mut rng = thread_rng();
+        let f = Bn254_f::random(&mut rng);
+        let mut buffer = [0u8; 64];
+        f.serialize_into(&mut buffer);
+        let g = Bn254_f::deserialize_from(&buffer);
+        assert_eq!(f, g);
+    }
+}
+
