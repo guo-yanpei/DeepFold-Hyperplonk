@@ -25,6 +25,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "arithmetic"
+version = "0.1.0"
+source = "git+https://github.com/EspressoSystems/hyperplonk.git#dc194f83ef5cae523b869f7256f314bdbeb2a42c"
+dependencies = [
+ "ark-bls12-381",
+ "ark-ff",
+ "ark-poly",
+ "ark-serialize",
+ "ark-std",
+ "displaydoc",
+ "rand_chacha",
+ "rayon",
+]
+
+[[package]]
+name = "ark-bls12-381"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c775f0d12169cba7aae4caeb547bb6a50781c7449a8aa53793827c9ec4abf488"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-serialize",
+ "ark-std",
+]
+
+[[package]]
 name = "ark-bn254"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -47,8 +74,9 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown",
- "itertools",
+ "itertools 0.10.5",
  "num-traits",
+ "rayon",
  "zeroize",
 ]
 
@@ -64,10 +92,11 @@ dependencies = [
  "ark-std",
  "derivative",
  "digest",
- "itertools",
+ "itertools 0.10.5",
  "num-bigint",
  "num-traits",
  "paste",
+ "rayon",
  "rustc_version",
  "zeroize",
 ]
@@ -106,6 +135,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown",
+ "rayon",
 ]
 
 [[package]]
@@ -139,6 +169,7 @@ checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
  "rand",
+ "rayon",
 ]
 
 [[package]]
@@ -215,6 +246,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-deque"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "613f8cc01fe9cf1a3eb3d7f488fd2fa8388403e97039e2f73692932e291a770d"
+dependencies = [
+ "crossbeam-epoch",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.9.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
+
+[[package]]
 name = "crypto-common"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -243,6 +299,17 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
  "crypto-common",
+]
+
+[[package]]
+name = "displaydoc"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.72",
 ]
 
 [[package]]
@@ -285,10 +352,10 @@ dependencies = [
 name = "hyperplonk"
 version = "0.1.0"
 dependencies = [
- "arithmetic",
+ "arithmetic 0.1.0",
  "poly_commit",
  "rand",
- "util",
+ "util 0.1.0",
 ]
 
 [[package]]
@@ -301,10 +368,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "keccak"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
+dependencies = [
+ "cpufeatures",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
+
+[[package]]
+name = "merlin"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58c38e2799fc0978b65dfff8023ec7843e2330bb462f19198840b34b6582397d"
+dependencies = [
+ "byteorder",
+ "keccak",
+ "rand_core",
+ "zeroize",
+]
 
 [[package]]
 name = "num-bigint"
@@ -350,14 +447,15 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 name = "poly_commit"
 version = "0.1.0"
 dependencies = [
- "arithmetic",
+ "arithmetic 0.1.0",
  "ark-bn254",
  "ark-ec",
  "ark-ff",
  "ark-serialize",
  "rand",
  "rs_merkle",
- "util",
+ "subroutines",
+ "util 0.1.0",
 ]
 
 [[package]]
@@ -418,6 +516,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "rayon"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b418a60154510ca1a002a752ca9714984e21e4241e804d32555251faf8b78ffa"
+dependencies = [
+ "either",
+ "rayon-core",
+]
+
+[[package]]
+name = "rayon-core"
+version = "1.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
+dependencies = [
+ "crossbeam-deque",
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "rs_merkle"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -453,6 +571,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "subroutines"
+version = "0.1.0"
+source = "git+https://github.com/EspressoSystems/hyperplonk.git#dc194f83ef5cae523b869f7256f314bdbeb2a42c"
+dependencies = [
+ "arithmetic 0.1.0 (git+https://github.com/EspressoSystems/hyperplonk.git)",
+ "ark-bls12-381",
+ "ark-ec",
+ "ark-ff",
+ "ark-poly",
+ "ark-serialize",
+ "ark-std",
+ "derivative",
+ "displaydoc",
+ "itertools 0.13.0",
+ "rand_chacha",
+ "rayon",
+ "transcript",
+ "util 0.1.0 (git+https://github.com/EspressoSystems/hyperplonk.git)",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -475,6 +614,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "transcript"
+version = "0.1.0"
+source = "git+https://github.com/EspressoSystems/hyperplonk.git#dc194f83ef5cae523b869f7256f314bdbeb2a42c"
+dependencies = [
+ "ark-ff",
+ "ark-serialize",
+ "ark-std",
+ "displaydoc",
+ "merlin",
+]
+
+[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -490,10 +641,18 @@ checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
 name = "util"
 version = "0.1.0"
 dependencies = [
- "arithmetic",
+ "arithmetic 0.1.0",
  "blake3",
  "rs_merkle",
  "sha2",
+]
+
+[[package]]
+name = "util"
+version = "0.1.0"
+source = "git+https://github.com/EspressoSystems/hyperplonk.git#dc194f83ef5cae523b869f7256f314bdbeb2a42c"
+dependencies = [
+ "rayon",
 ]
 
 [[package]]
