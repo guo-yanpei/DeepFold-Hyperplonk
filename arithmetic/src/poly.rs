@@ -87,7 +87,9 @@ mod tests {
     use rand::thread_rng;
 
     use crate::field::{
-        bn_254::Bn254_f, goldilocks64::{Goldilocks64, Goldilocks64Ext}, Field
+        bn_254::Bn254F,
+        goldilocks64::{Goldilocks64, Goldilocks64Ext},
+        Field,
     };
 
     use super::MultiLinearPoly;
@@ -95,17 +97,17 @@ mod tests {
     #[test]
     fn eq() {
         let mut rng = thread_rng();
-        let r = (0..12).map(|_| Bn254_f::random(&mut rng)).collect();
+        let r = (0..12).map(|_| Bn254F::random(&mut rng)).collect();
         let eq_r = MultiLinearPoly::new_eq(&r);
-        let point = (0..12).map(|_| Bn254_f::random(&mut rng)).collect();
+        let point = (0..12).map(|_| Bn254F::random(&mut rng)).collect();
         assert_eq!(
             MultiLinearPoly::eval_eq(&r, &point),
             MultiLinearPoly::eval_multilinear(&eq_r.evals, &point)
         );
-        let identical = MultiLinearPoly::new_identical(12, Bn254_f::zero());
-        let r = (0..12).map(|_| Bn254_f::random(&mut rng)).collect();
+        let identical = MultiLinearPoly::new_identical(12, Bn254F::zero());
+        let r = (0..12).map(|_| Bn254F::random(&mut rng)).collect();
         assert_eq!(
-            MultiLinearPoly::eval_identical(&r, Bn254_f::zero()),
+            MultiLinearPoly::eval_identical(&r, Bn254F::zero()),
             MultiLinearPoly::eval_multilinear_ext(&identical.evals, &r)
         );
     }

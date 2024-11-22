@@ -1,70 +1,69 @@
 use ark_bn254::{Bn254, Fr, G1Projective, G2Projective};
-use ark_ec::pairing::Pairing;
 use ark_ff::{biginteger::BigInt, BigInteger, Field as F, One, PrimeField, UniformRand, Zero};
 
-use super::Field;
+use super::{Field, PairingField};
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct Bn254_f(Fr);
+pub struct Bn254F(Fr);
 
-impl std::ops::Neg for Bn254_f {
+impl std::ops::Neg for Bn254F {
     type Output = Self;
     fn neg(self) -> Self::Output {
         Self(-self.0)
     }
 }
-impl std::ops::Add for Bn254_f {
+impl std::ops::Add for Bn254F {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
     }
 }
 
-impl std::ops::AddAssign for Bn254_f {
+impl std::ops::AddAssign for Bn254F {
     fn add_assign(&mut self, rhs: Self) {
         *self = self.clone() + rhs
     }
 }
 
-impl std::ops::Sub for Bn254_f {
+impl std::ops::Sub for Bn254F {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
     }
 }
 
-impl std::ops::SubAssign for Bn254_f {
+impl std::ops::SubAssign for Bn254F {
     fn sub_assign(&mut self, rhs: Self) {
         *self = self.clone() - rhs
     }
 }
 
-impl std::ops::Mul for Bn254_f {
+impl std::ops::Mul for Bn254F {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
         Self(self.0 * rhs.0)
     }
 }
 
-impl std::ops::MulAssign for Bn254_f {
+impl std::ops::MulAssign for Bn254F {
     fn mul_assign(&mut self, rhs: Self) {
         *self = self.clone() * rhs;
     }
 }
 
-impl From<u32> for Bn254_f {
+impl From<u32> for Bn254F {
     fn from(value: u32) -> Self {
-        Bn254_f(value.into())
+        Bn254F(value.into())
     }
 }
 
-impl From<u64> for Bn254_f {
+impl From<u64> for Bn254F {
     fn from(value: u64) -> Self {
-        Bn254_f(value.into())
+        Bn254F(value.into())
     }
 }
 
-impl Field for Bn254_f {
+impl Field for Bn254F {
     const NAME: &'static str = "Bn254 Fr";
     const SIZE: usize = 32;
     // const INV_2: Self = Self::default();
@@ -146,5 +145,19 @@ impl Field for Bn254_f {
         let v2 = unsafe { ptr.add(2).read_unaligned() } as u64;
         let v3 = unsafe { ptr.add(3).read_unaligned() } as u64;
         Self(BigInt([v0, v1, v2, v3]).into())
+    }
+}
+
+impl PairingField for Bn254F {
+    type E = Bn254;
+    type G1 = G1Projective;
+    type G2 = G2Projective;
+
+    fn g1_mul(g1: Self::G1, x: Self) -> Self::G1 {
+        g1 * x.0
+    }
+
+    fn g2_mul(g2: Self::G2, x: Self) -> Self::G2 {
+        g2 * x.0
     }
 }

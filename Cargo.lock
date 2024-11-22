@@ -351,6 +351,10 @@ name = "poly_commit"
 version = "0.1.0"
 dependencies = [
  "arithmetic",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff",
+ "ark-serialize",
  "rand",
  "rs_merkle",
  "util",

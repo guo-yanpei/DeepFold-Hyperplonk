@@ -1,14 +1,14 @@
-use arithmetic::{field::Field, poly::MultiLinearPoly};
+use arithmetic::{field::{Field, PairingField}, poly::MultiLinearPoly};
 use util::fiat_shamir::{Proof, Transcript};
 
 use crate::{CommitmentSerde, PolyCommitProver, PolyCommitVerifier};
 
 #[derive(Debug, Clone, Default)]
-pub struct KzgCommitment<F: Field> {
+pub struct RawCommitment<F: PairingField> {
     pub poly_evals: Vec<Vec<F::BaseField>>,
 }
 
-impl<F: Field> CommitmentSerde for KzgCommitment<F> {
+impl<F: PairingField> CommitmentSerde for RawCommitment<F> {
     fn size(nv: usize, np: usize) -> usize {
         (1 << nv) * np * F::BaseField::SIZE
     }
@@ -34,18 +34,18 @@ impl<F: Field> CommitmentSerde for KzgCommitment<F> {
             }
             poly_evals.push(poly);
         }
-        KzgCommitment { poly_evals }
+        RawCommitment { poly_evals }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct ShufflePcProver<F: Field> {
+pub struct ShufflePcProver<F: PairingField> {
     evals: Vec<Vec<F::BaseField>>,
 }
 
-impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
+impl<F: PairingField> PolyCommitProver<F> for ShufflePcProver<F> {
     type Param = ();
-    type Commitment = KzgCommitment<F>;
+    type Commitment = RawCommitment<F>;
 
     fn new(_pp: &(), evals: &[Vec<F::BaseField>]) -> Self {
         ShufflePcProver {
@@ -54,7 +54,7 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
     }
 
     fn commit(&self) -> Self::Commitment {
-        KzgCommitment {
+        RawCommitment {
             poly_evals: self.evals.clone(),
         }
     }
@@ -122,13 +122,13 @@ impl<F: Field> PolyCommitProver<F> for ShufflePcProver<F> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ShufflePcVerifier<F: Field> {
-    commit: KzgCommitment<F>,
+pub struct ShufflePcVerifier<F: PairingField> {
+    commit: RawCommitment<F>,
 }
 
-impl<F: Field> PolyCommitVerifier<F> for ShufflePcVerifier<F> {
+impl<F: PairingField> PolyCommitVerifier<F> for ShufflePcVerifier<F> {
     type Param = ();
-    type Commitment = KzgCommitment<F>;
+    type Commitment = RawCommitment<F>;
 
     fn new(_pp: &Self::Param, commit: Self::Commitment, poly_num: usize) -> Self {
         ShufflePcVerifier { commit }

@@ -130,7 +130,7 @@ impl Sumcheck {
 #[cfg(test)]
 mod tests {
     use arithmetic::{
-        field::{bn_254::Bn254_f, goldilocks64::Goldilocks64Ext, Field},
+        field::{bn_254::Bn254F, goldilocks64::Goldilocks64Ext, Field},
         poly::MultiLinearPoly,
     };
     use rand::thread_rng;
@@ -142,25 +142,25 @@ mod tests {
     fn test_sumcheck() {
         let mut rng = thread_rng();
         let a = (0..4096)
-            .map(|_| Bn254_f::random(&mut rng))
+            .map(|_| Bn254F::random(&mut rng))
             .collect::<Vec<_>>();
         let b = (0..4096)
-            .map(|_| Bn254_f::random(&mut rng))
+            .map(|_| Bn254F::random(&mut rng))
             .collect::<Vec<_>>();
         let c = (0..4096)
-            .map(|_| Bn254_f::random(&mut rng))
+            .map(|_| Bn254F::random(&mut rng))
             .collect::<Vec<_>>();
         let d = (0..4096)
-            .map(|_| Bn254_f::random(&mut rng))
+            .map(|_| Bn254F::random(&mut rng))
             .collect::<Vec<_>>();
         let mut transcript = Transcript::new();
         Sumcheck::prove(
             [a.clone(), b.clone(), c.clone(), d.clone()],
             3,
             &mut transcript,
-            |v: [Bn254_f; 4]| [(v[0] * v[1] + v[2]) * v[3], v[2] * v[2] * v[3]],
+            |v: [Bn254F; 4]| [(v[0] * v[1] + v[2]) * v[3], v[2] * v[2] * v[3]],
         );
-        let y = (0..4096).fold([Bn254_f::zero(), Bn254_f::zero()], |acc, x| {
+        let y = (0..4096).fold([Bn254F::zero(), Bn254F::zero()], |acc, x| {
             [
                 acc[0] + (a[x] * b[x] + c[x]) * d[x],
                 acc[1] + c[x] * c[x] * d[x],
