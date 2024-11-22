@@ -182,7 +182,6 @@ use super::{FftField, Field};
 impl Field for Goldilocks64 {
     const NAME: &'static str = "Goldilocks64";
     const SIZE: usize = 8;
-    const INV_2: Self = Goldilocks64 { v: (MOD + 1) / 2 };
     type BaseField = Goldilocks64;
 
     fn zero() -> Self {
@@ -191,6 +190,10 @@ impl Field for Goldilocks64 {
 
     fn is_zero(&self) -> bool {
         self.v == 0
+    }
+
+    fn inv_2() -> Self {
+        Goldilocks64 { v: (MOD + 1) / 2 }
     }
 
     fn one() -> Self {
@@ -363,9 +366,6 @@ impl From<u64> for Goldilocks64Ext {
 impl Field for Goldilocks64Ext {
     const NAME: &'static str = "Goldilocks64Ext";
     const SIZE: usize = 16;
-    const INV_2: Self = Goldilocks64Ext {
-        v: [Goldilocks64 { v: (MOD + 1) / 2 }, Goldilocks64 { v: 0 }],
-    };
     type BaseField = Goldilocks64;
 
     fn zero() -> Self {
@@ -381,6 +381,12 @@ impl Field for Goldilocks64Ext {
     fn one() -> Self {
         Goldilocks64Ext {
             v: [Goldilocks64::one(), Goldilocks64::zero()],
+        }
+    }
+
+    fn inv_2() -> Self {
+        Goldilocks64Ext {
+            v: [Goldilocks64 { v: (MOD + 1) / 2 }, Goldilocks64 { v: 0 }],
         }
     }
 

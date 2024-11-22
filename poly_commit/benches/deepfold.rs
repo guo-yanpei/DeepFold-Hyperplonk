@@ -34,7 +34,9 @@ fn main() {
         .iter()
         .map(|x| MultiLinearPoly::eval_multilinear(x, &point[0..nv - batch].to_vec()))
         .collect::<Vec<_>>();
-    let mut mult_subgroups = vec![Radix2Group::<Goldilocks64>::new((nv - batch + code_rate) as u32)];
+    let mut mult_subgroups = vec![Radix2Group::<Goldilocks64>::new(
+        (nv - batch + code_rate) as u32,
+    )];
     for i in 1..nv - batch {
         mult_subgroups.push(mult_subgroups[i - 1].exp(2));
     }
@@ -59,7 +61,11 @@ fn main() {
         point[0..nv - batch].to_vec(),
         &mut transcript,
     );
-    println!("prover: {} ms, size: {} B", start.elapsed().as_millis(), transcript.proof.bytes.len());
+    println!(
+        "prover: {} ms, size: {} B",
+        start.elapsed().as_millis(),
+        transcript.proof.bytes.len()
+    );
     let mut proof = transcript.proof;
 
     let commitment = MerkleRoot::deserialize_from(&mut proof, nv - batch, 1 << batch);

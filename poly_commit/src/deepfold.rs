@@ -142,7 +142,7 @@ impl<F: FftField> DeepFoldProver<F> {
             let nx = last_interpolation[i + len / 2];
             let sum = x + nx;
             let new_v = sum + challenge * ((x - nx) * F::from(subgroup.element_inv_at(i)) - sum);
-            res.push(new_v.mul_base_elem(F::BaseField::INV_2));
+            res.push(new_v.mul_base_elem(<F as Field>::BaseField::inv_2()));
         }
         res
     }
@@ -430,7 +430,7 @@ impl<F: FftField> PolyCommitVerifier<F> for DeepFoldVerifier<F> {
                         return false;
                     }
                 } else {
-                    if new_v.mul_base_elem(F::BaseField::INV_2) != eval {
+                    if new_v.mul_base_elem(<F as Field>::BaseField::inv_2()) != eval {
                         return false;
                     }
                 }

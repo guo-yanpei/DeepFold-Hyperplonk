@@ -4,6 +4,7 @@ use arithmetic::field::Field;
 use util::fiat_shamir::{Proof, Transcript};
 
 pub mod deepfold;
+pub mod nil;
 pub mod shuffle;
 pub trait CommitmentSerde {
     fn size(nv: usize, np: usize) -> usize;
