@@ -13,7 +13,7 @@ use rand::thread_rng;
 use hyperplonk::{circuit::Circuit, prover::Prover, verifier::Verifier};
 
 fn main() {
-    bench_mock_circuit(26, 1);
+    bench_mock_circuit(20, 1);
 }
 
 fn bench_mock_circuit(nv: u32, repetition: usize) {
@@ -33,8 +33,8 @@ fn bench_mock_circuit(nv: u32, repetition: usize) {
     }
     let pp = DeepFoldParam::<Goldilocks64Ext> {
         mult_subgroups,
-        variable_num: 12,
-        query_num: 30,
+        variable_num: nv as usize,
+        query_num: 45,
     };
     let (pk, vk) = mock_circuit.setup::<DeepFoldProver<_>, DeepFoldVerifier<_>>(&pp, &pp);
     let prover = Prover { prover_key: pk };
@@ -53,15 +53,15 @@ fn bench_mock_circuit(nv: u32, repetition: usize) {
         })
         .collect::<Vec<_>>();
     let start = Instant::now();
-    for _ in 0..repetition {
+    for _ in 0..repetition - 1 {
         let proof = prover.prove(&pp, nv as usize, [a.clone(), b.clone(), c.clone()]);
     }
+    let proof = prover.prove(&pp, nv as usize, [a, b, c]);
     println!(
         "proving for 2^{} gates: {} us",
         nv,
         start.elapsed().as_micros() / repetition as u128
     );
 
-    let proof = prover.prove(&pp, nv as usize, [a, b, c]);
     assert!(verifier.verify(&pp, nv as usize, proof));
 }
