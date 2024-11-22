@@ -14,7 +14,9 @@ mod tests {
         mul_group::Radix2Group,
     };
     use poly_commit::{
-        deepfold::{DeepFoldParam, DeepFoldProver, DeepFoldVerifier}, nil::{NilPcProver, NilPcVerifier}, shuffle::{ShufflePcProver, ShufflePcVerifier}
+        deepfold::{DeepFoldParam, DeepFoldProver, DeepFoldVerifier},
+        nil::{NilPcProver, NilPcVerifier},
+        shuffle::{ShufflePcProver, ShufflePcVerifier},
     };
     use rand::thread_rng;
 
