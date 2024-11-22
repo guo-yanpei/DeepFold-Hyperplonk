@@ -86,11 +86,7 @@ impl<F: Field> MultiLinearPoly<F> {
 mod tests {
     use rand::thread_rng;
 
-    use crate::field::{
-        bn_254::Bn254F,
-        goldilocks64::{Goldilocks64, Goldilocks64Ext},
-        Field,
-    };
+    use crate::field::{bn_254::Bn254F, Field};
 
     use super::MultiLinearPoly;
 
