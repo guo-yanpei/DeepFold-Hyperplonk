@@ -4,8 +4,8 @@ use arithmetic::field::Field;
 use util::fiat_shamir::{Proof, Transcript};
 
 pub mod deepfold;
+pub mod nil;
 pub mod shuffle;
-pub mod kzg;
 pub trait CommitmentSerde {
     fn size(nv: usize, np: usize) -> usize;
     fn serialize_into(&self, buffer: &mut [u8]);

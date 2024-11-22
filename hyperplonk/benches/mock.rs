@@ -56,8 +56,12 @@ fn bench_mock_circuit(nv: u32, repetition: usize) {
     for _ in 0..repetition {
         let proof = prover.prove(&pp, nv as usize, [a.clone(), b.clone(), c.clone()]);
     }
-    println!("proving for 2^{} gates: {} us", nv, start.elapsed().as_micros() / repetition as u128);
-    
+    println!(
+        "proving for 2^{} gates: {} us",
+        nv,
+        start.elapsed().as_micros() / repetition as u128
+    );
+
     let proof = prover.prove(&pp, nv as usize, [a, b, c]);
     assert!(verifier.verify(&pp, nv as usize, proof));
 }
