@@ -7,16 +7,25 @@ use arithmetic::{
     },
     mul_group::Radix2Group,
 };
+use csv::Writer;
 use poly_commit::deepfold::{DeepFoldParam, DeepFoldProver, DeepFoldVerifier};
 use rand::thread_rng;
 
 use hyperplonk::{circuit::Circuit, prover::Prover, verifier::Verifier};
 
 fn main() {
-    bench_mock_circuit(20, 1);
+    let mut wtr = Writer::from_path("deepfold_snark.csv").unwrap();
+    let (prover_time, proof_size, verifier_time) = bench_mock_circuit(20, 1);
+    wtr.write_record([
+        20.to_string(),
+        prover_time.to_string(),
+        proof_size.to_string(),
+        verifier_time.to_string(),
+    ])
+    .unwrap();
 }
 
-fn bench_mock_circuit(nv: u32, repetition: usize) {
+fn bench_mock_circuit(nv: u32, repetition: usize) -> (usize, usize, usize) {
     let num_gates = 1u32 << nv;
     let mock_circuit = Circuit::<Goldilocks64Ext> {
         permutation: [
@@ -54,14 +63,15 @@ fn bench_mock_circuit(nv: u32, repetition: usize) {
         .collect::<Vec<_>>();
     let start = Instant::now();
     for _ in 0..repetition - 1 {
-        let proof = prover.prove(&pp, nv as usize, [a.clone(), b.clone(), c.clone()]);
+        let _proof = prover.prove(&pp, nv as usize, [a.clone(), b.clone(), c.clone()]);
     }
     let proof = prover.prove(&pp, nv as usize, [a, b, c]);
-    println!(
-        "proving for 2^{} gates: {} us",
-        nv,
-        start.elapsed().as_micros() / repetition as u128
-    );
+    let prover_time = start.elapsed().as_millis() as usize / repetition;
+    let proof_size = proof.bytes.len();
 
+    let start = Instant::now();
     assert!(verifier.verify(&pp, nv as usize, proof));
+    let verifier_time = start.elapsed().as_micros() as usize;
+
+    (prover_time, proof_size, verifier_time)
 }

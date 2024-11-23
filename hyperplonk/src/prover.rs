@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use arithmetic::{field::Field, poly::MultiLinearPoly};
 use poly_commit::{CommitmentSerde, PolyCommitProver};
 use util::fiat_shamir::{Proof, Transcript};
@@ -19,23 +17,23 @@ pub struct Prover<F: Field, PC: PolyCommitProver<F>> {
 impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
     pub fn prove(&self, pp: &PC::Param, nv: usize, witness: [Vec<F::BaseField>; 3]) -> Proof {
         let mut transcript = Transcript::new();
-        let start = Instant::now();
         let witness_pc = PC::new(pp, &witness);
 
         let commit = witness_pc.commit();
         let mut buffer = vec![0u8; PC::Commitment::size(nv, 3)];
         commit.serialize_into(&mut buffer);
         transcript.append_u8_slice(&buffer, PC::Commitment::size(nv, 3));
-        println!(
-            "poly commit for 2^{} gates: {} us",
-            nv,
-            start.elapsed().as_micros() as u128
-        );
 
-        let start = Instant::now();
         let bookkeeping = witness
             .clone()
             .map(|x| x.into_iter().map(|i| F::from(i)).collect::<Vec<_>>());
+
+        println!(
+            "{} {} proof size: {}",
+            file!(),
+            line!(),
+            transcript.proof.bytes.len()
+        );
 
         let r = (0..nv)
             .map(|_| transcript.challenge_f::<F>())
@@ -59,16 +57,16 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             |v: [F; 5]| [v[4] * ((F::one() - v[0]) * (v[1] + v[2]) + v[0] * v[1] * v[2] + v[3])],
         );
 
+        println!(
+            "{} {} proof size: {}",
+            file!(),
+            line!(),
+            transcript.proof.bytes.len()
+        );
+
         for i in 0..4 {
             transcript.append_f(v[i]);
         }
-        println!(
-            "gate constraints for 2^{} gates: {} us",
-            nv,
-            start.elapsed().as_micros() as u128
-        );
-
-        let start = Instant::now();
         let witness_flatten = bookkeeping[0]
             .clone()
             .into_iter()
@@ -100,6 +98,13 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .chain((0..(1 << nv)).into_iter().map(|_| F::BaseField::zero()))
             .collect::<Vec<_>>();
 
+        println!(
+            "{} {} proof size: {}",
+            file!(),
+            line!(),
+            transcript.proof.bytes.len()
+        );
+
         let r = [0; 2].map(|_| transcript.challenge_f::<F>());
 
         let evals1 = witness_flatten
@@ -115,9 +120,10 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
         let prod_point = ProdEqCheck::prove([evals1, evals2], &mut transcript);
 
         println!(
-            "wire constraints for 2^{} gates: {} us",
-            nv,
-            start.elapsed().as_micros() as u128
+            "{} {} proof size: {}",
+            file!(),
+            line!(),
+            transcript.proof.bytes.len()
         );
 
         for i in 0..3 {
@@ -133,7 +139,12 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             ));
         }
 
-        let start = Instant::now();
+        println!(
+            "{} {} proof size: {}",
+            file!(),
+            line!(),
+            transcript.proof.bytes.len()
+        );
 
         let r: F = transcript.challenge_f();
         let r2 = r * r;
@@ -180,6 +191,14 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             &mut transcript,
             |v: [F; 4]| [v[0] * v[2], v[1] * v[3]],
         );
+
+        println!(
+            "{} {} proof size: {}",
+            file!(),
+            line!(),
+            transcript.proof.bytes.len()
+        );
+
         transcript.append_f(MultiLinearPoly::eval_multilinear(
             &self.prover_key.selector.evals,
             &point,
@@ -193,22 +212,19 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
         for i in 0..3 {
             transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[i], &point));
         }
+
         println!(
-            "eval merge for 2^{} gates: {} us",
-            nv,
-            start.elapsed().as_micros() as u128
+            "{} {} proof size: {}",
+            file!(),
+            line!(),
+            transcript.proof.bytes.len()
         );
-        let start = Instant::now();
+
         PC::open(
             pp,
             vec![&self.prover_key.commitments, &witness_pc],
             point,
             &mut transcript,
-        );
-        println!(
-            "poly open for 2^{} gates: {} us",
-            nv,
-            start.elapsed().as_micros() as u128
         );
 
         transcript.proof

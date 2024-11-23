@@ -1,9 +1,7 @@
 use std::time::Instant;
 
-use arithmetic::{
-    field::{bn_254::Bn254F, Field},
-    mul_group::Radix2Group,
-};
+use arithmetic::field::{bn_254::Bn254F, Field};
+use csv::Writer;
 use poly_commit::nil::{NilPcProver, NilPcVerifier};
 use rand::thread_rng;
 
@@ -11,9 +9,13 @@ use hyperplonk::{circuit::Circuit, prover::Prover, verifier::Verifier};
 
 fn main() {
     bench_mock_circuit::<Bn254F>(20, 1);
+    let mut wtr = Writer::from_path("piop.csv").unwrap();
+    let (prover_time, proof_size, verifier_time) = bench_mock_circuit::<Bn254F>(20, 1);
+    wtr.write_record([20, prover_time, proof_size, verifier_time].map(|x| x.to_string()))
+        .unwrap();
 }
 
-fn bench_mock_circuit<F: Field>(nv: u32, repetition: usize) {
+fn bench_mock_circuit<F: Field>(nv: u32, repetition: usize) -> (usize, usize, usize) {
     let num_gates = 1u32 << nv;
     let mock_circuit = Circuit::<F> {
         permutation: [
@@ -45,11 +47,12 @@ fn bench_mock_circuit<F: Field>(nv: u32, repetition: usize) {
         let proof = prover.prove(&(), nv as usize, [a.clone(), b.clone(), c.clone()]);
     }
     let proof = prover.prove(&(), nv as usize, [a.clone(), b.clone(), c.clone()]);
-    println!(
-        "proving for 2^{} gates: {} us",
-        nv,
-        start.elapsed().as_micros() / repetition as u128
-    );
+    let prover_time = start.elapsed().as_millis() as usize / repetition;
+    let proof_size = proof.bytes.len();
 
+    let start = Instant::now();
     assert!(verifier.verify(&(), nv as usize, proof));
+    let verifier_time = start.elapsed().as_millis() as usize;
+
+    (prover_time, proof_size, verifier_time)
 }
