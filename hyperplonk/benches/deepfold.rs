@@ -15,14 +15,11 @@ use hyperplonk::{circuit::Circuit, prover::Prover, verifier::Verifier};
 
 fn main() {
     let mut wtr = Writer::from_path("deepfold_snark.csv").unwrap();
+    wtr.write_record(["nv", "prover_time", "proof_size", "verifier_time"])
+        .unwrap();
     let (prover_time, proof_size, verifier_time) = bench_mock_circuit(20, 1);
-    wtr.write_record([
-        20.to_string(),
-        prover_time.to_string(),
-        proof_size.to_string(),
-        verifier_time.to_string(),
-    ])
-    .unwrap();
+    wtr.write_record([20, prover_time, proof_size, verifier_time].map(|x| x.to_string()))
+        .unwrap();
 }
 
 fn bench_mock_circuit(nv: u32, repetition: usize) -> (usize, usize, usize) {
@@ -66,7 +63,7 @@ fn bench_mock_circuit(nv: u32, repetition: usize) -> (usize, usize, usize) {
         let _proof = prover.prove(&pp, nv as usize, [a.clone(), b.clone(), c.clone()]);
     }
     let proof = prover.prove(&pp, nv as usize, [a, b, c]);
-    let prover_time = start.elapsed().as_millis() as usize / repetition;
+    let prover_time = start.elapsed().as_micros() as usize / repetition;
     let proof_size = proof.bytes.len();
 
     let start = Instant::now();

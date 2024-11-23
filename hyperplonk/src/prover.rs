@@ -28,12 +28,6 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .clone()
             .map(|x| x.into_iter().map(|i| F::from(i)).collect::<Vec<_>>());
 
-        println!(
-            "{} {} proof size: {}",
-            file!(),
-            line!(),
-            transcript.proof.bytes.len()
-        );
 
         let r = (0..nv)
             .map(|_| transcript.challenge_f::<F>())
@@ -55,13 +49,6 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             4,
             &mut transcript,
             |v: [F; 5]| [v[4] * ((F::one() - v[0]) * (v[1] + v[2]) + v[0] * v[1] * v[2] + v[3])],
-        );
-
-        println!(
-            "{} {} proof size: {}",
-            file!(),
-            line!(),
-            transcript.proof.bytes.len()
         );
 
         for i in 0..4 {
@@ -98,13 +85,6 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .chain((0..(1 << nv)).into_iter().map(|_| F::BaseField::zero()))
             .collect::<Vec<_>>();
 
-        println!(
-            "{} {} proof size: {}",
-            file!(),
-            line!(),
-            transcript.proof.bytes.len()
-        );
-
         let r = [0; 2].map(|_| transcript.challenge_f::<F>());
 
         let evals1 = witness_flatten
@@ -119,13 +99,6 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             .collect::<Vec<_>>();
         let prod_point = ProdEqCheck::prove([evals1, evals2], &mut transcript);
 
-        println!(
-            "{} {} proof size: {}",
-            file!(),
-            line!(),
-            transcript.proof.bytes.len()
-        );
-
         for i in 0..3 {
             transcript.append_f(MultiLinearPoly::eval_multilinear(
                 &witness[i],
@@ -138,13 +111,6 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
                 &prod_point[..nv],
             ));
         }
-
-        println!(
-            "{} {} proof size: {}",
-            file!(),
-            line!(),
-            transcript.proof.bytes.len()
-        );
 
         let r: F = transcript.challenge_f();
         let r2 = r * r;
@@ -192,13 +158,6 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
             |v: [F; 4]| [v[0] * v[2], v[1] * v[3]],
         );
 
-        println!(
-            "{} {} proof size: {}",
-            file!(),
-            line!(),
-            transcript.proof.bytes.len()
-        );
-
         transcript.append_f(MultiLinearPoly::eval_multilinear(
             &self.prover_key.selector.evals,
             &point,
@@ -212,13 +171,6 @@ impl<F: Field, PC: PolyCommitProver<F>> Prover<F, PC> {
         for i in 0..3 {
             transcript.append_f(MultiLinearPoly::eval_multilinear(&witness[i], &point));
         }
-
-        println!(
-            "{} {} proof size: {}",
-            file!(),
-            line!(),
-            transcript.proof.bytes.len()
-        );
 
         PC::open(
             pp,

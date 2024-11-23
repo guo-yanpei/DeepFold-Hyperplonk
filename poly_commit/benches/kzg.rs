@@ -1,4 +1,5 @@
 use ark_bn254::{Bn254, Fr};
+use ark_ec::pairing::Pairing;
 use ark_ff::UniformRand;
 use ark_poly::{DenseMultilinearExtension, MultilinearExtension};
 use ark_std::{sync::Arc, test_rng};
@@ -10,14 +11,16 @@ use hp::{
     },
     MultilinearUniversalParams,
 };
-use std::time::Instant;
+use std::{mem::size_of, time::Instant};
 
 fn main() {
-    let size = 15;
+    let size = 16;
     let mut rng = test_rng();
     let uni_params = MultilinearKzgPCS::<Bn254>::gen_srs_for_testing(&mut rng, size).unwrap();
     let mut wtr = Writer::from_path("mkzg.csv").unwrap();
-    for nv in 6..size {
+    wtr.write_record(["nv", "commit_time", "open_time", "proof_size", "verifier_time"])
+        .unwrap();
+    for nv in 13..size {
         let repetition = if nv < 10 {
             10
         } else if nv < 20 {
@@ -69,7 +72,7 @@ fn mkzg(
         (start.elapsed().as_micros() as usize / repetition, open)
     };
 
-    let proof_size = proof.proofs.len();
+    let proof_size = proof.proofs.len() * size_of::<<Bn254 as Pairing>::G1Affine>();
 
     // verify
     let verifier_time = {

@@ -8,14 +8,17 @@ use rand::thread_rng;
 use hyperplonk::{circuit::Circuit, prover::Prover, verifier::Verifier};
 
 fn main() {
-    bench_mock_circuit::<Bn254F>(20, 1);
+    let nv = 15usize;
+    bench_mock_circuit::<Bn254F>(nv, 1);
     let mut wtr = Writer::from_path("piop.csv").unwrap();
-    let (prover_time, proof_size, verifier_time) = bench_mock_circuit::<Bn254F>(20, 1);
-    wtr.write_record([20, prover_time, proof_size, verifier_time].map(|x| x.to_string()))
+    wtr.write_record(["nv", "prover_time", "proof_size", "verifier_time"])
+        .unwrap();
+    let (prover_time, proof_size, verifier_time) = bench_mock_circuit::<Bn254F>(nv, 1);
+    wtr.write_record([nv, prover_time, proof_size, verifier_time].map(|x| x.to_string()))
         .unwrap();
 }
 
-fn bench_mock_circuit<F: Field>(nv: u32, repetition: usize) -> (usize, usize, usize) {
+fn bench_mock_circuit<F: Field>(nv: usize, repetition: usize) -> (usize, usize, usize) {
     let num_gates = 1u32 << nv;
     let mock_circuit = Circuit::<F> {
         permutation: [
@@ -44,15 +47,15 @@ fn bench_mock_circuit<F: Field>(nv: u32, repetition: usize) -> (usize, usize, us
         .collect::<Vec<_>>();
     let start = Instant::now();
     for _ in 0..repetition - 1 {
-        let proof = prover.prove(&(), nv as usize, [a.clone(), b.clone(), c.clone()]);
+        let _proof = prover.prove(&(), nv as usize, [a.clone(), b.clone(), c.clone()]);
     }
     let proof = prover.prove(&(), nv as usize, [a.clone(), b.clone(), c.clone()]);
-    let prover_time = start.elapsed().as_millis() as usize / repetition;
+    let prover_time = start.elapsed().as_micros() as usize / repetition;
     let proof_size = proof.bytes.len();
 
     let start = Instant::now();
     assert!(verifier.verify(&(), nv as usize, proof));
-    let verifier_time = start.elapsed().as_millis() as usize;
+    let verifier_time = start.elapsed().as_micros() as usize;
 
     (prover_time, proof_size, verifier_time)
 }
