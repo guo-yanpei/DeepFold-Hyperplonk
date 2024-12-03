@@ -10,3 +10,7 @@ rand = "0.8.5"
 ark-ec = "0.4"
 ark-ff = "0.4"
 ark-bn254 = "0.4"
+
+[[bench]]
+name = "field"
+harness = false
