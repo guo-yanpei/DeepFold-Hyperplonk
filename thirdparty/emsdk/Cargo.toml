@@ -1,0 +1,21 @@
+[package]
+name = "emsdk"
+version = "0.1.1"
+edition = "2021"
+
+authors = ["Sunscreen"]
+rust-version = "1.56.0"
+license = "AGPL-3.0-only"
+description = "A crate for building C++ projects with emcake. This facilitates building wasm binaries with both Rust and C++ code."
+homepage = "https://sunscreen.tech"
+repository = "https://github.com/Sunscreen-tech/Sunscreen"
+documentation = "https://bfv-docs.sunscreen.tech"
+keywords = ["emsdk", "emcc", "emcmake"]
+categories = ["development-tools"]
+readme = "crates-io.md"
+
+[dependencies]
+
+[build-dependencies]
+fs_extra = { version = "1.2.0" }
+reqwest = { version = "0.11.10", features = ["blocking"] }

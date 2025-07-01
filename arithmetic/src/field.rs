@@ -6,9 +6,11 @@ use std::{
 use ark_ec::pairing::Pairing;
 use ark_ff::UniformRand;
 use rand::RngCore;
+use seal_fhe::{BFVEncoder, Plaintext};
 
-pub mod bn_254;
-pub mod goldilocks64;
+// pub mod bn_254;
+pub mod dynamic_field;
+// pub mod goldilocks64;
 
 pub trait Field:
     Copy
@@ -50,6 +52,7 @@ pub trait Field:
     fn from_uniform_bytes(bytes: &[u8; 32]) -> Self;
     fn serialize_into(&self, buffer: &mut [u8]);
     fn deserialize_from(buffer: &[u8]) -> Self;
+    fn get_value(&self) -> u64;
 }
 
 pub trait FftField: Field + From<Self::FftBaseField> {
@@ -67,14 +70,30 @@ pub trait PairingField: Field {
     fn g2_mul(g2: Self::G2, x: Self) -> Self::G2;
 }
 
+// pub fn pt_batch_inverse(v: &mut [Plaintext], encoder: &BFVEncoder) {
+//         let mut aux = vec![v[0]];
+//     let len = v.len();
+//     for i in 1..len {
+//         aux.push(Plaintext::mult(&aux[i-1], &v[i], encoder));
+//     }
+//     let mut prod = aux[len - 1].inv().unwrap();
+//     for i in (1..len).rev() {
+//         (prod, v[i]) = (Plaintext::mult(&prod, &v[i], encoder), Plaintext::mult(&prod, &aux[i-1], encoder));
+//     }
+//     v[0] = prod;
+// }
+
 pub fn batch_inverse<F: Field>(v: &mut [F]) {
+    println!("batch inverse entered.");
     let mut aux = vec![v[0]];
     let len = v.len();
     for i in 1..len {
         aux.push(aux[i - 1] * v[i]);
     }
+
     let mut prod = aux[len - 1].inv().unwrap();
     for i in (1..len).rev() {
+        println!("{}: entered", i);
         (prod, v[i]) = (prod * v[i], prod * aux[i - 1]);
     }
     v[0] = prod;
@@ -90,41 +109,41 @@ pub fn as_bytes_vec<F: Field>(v: &[F]) -> Vec<u8> {
     buffer
 }
 
-#[cfg(test)]
-mod tests {
-    use ark_ec::pairing::Pairing;
-    use ark_ff::UniformRand;
-    use rand::thread_rng;
+// #[cfg(test)]
+// mod tests {
+//     use ark_ec::pairing::Pairing;
+//     use ark_ff::UniformRand;
+//     use rand::thread_rng;
 
-    use super::{bn_254::Bn254F, Field, PairingField};
+//     use super::{bn_254::Bn254F, Field, PairingField};
 
-    #[test]
-    fn serialize() {
-        let mut rng = thread_rng();
-        for _ in 0..100 {
-            let f = Bn254F::random(&mut rng);
-            let mut buffer = [0u8; 64];
-            f.serialize_into(&mut buffer);
-            let g = Bn254F::deserialize_from(&buffer);
-            assert_eq!(f, g);
-        }
-    }
+//     #[test]
+//     fn serialize() {
+//         let mut rng = thread_rng();
+//         for _ in 0..100 {
+//             let f = Bn254F::random(&mut rng);
+//             let mut buffer = [0u8; 64];
+//             f.serialize_into(&mut buffer);
+//             let g = Bn254F::deserialize_from(&buffer);
+//             assert_eq!(f, g);
+//         }
+//     }
 
-    fn pairing<F: PairingField>() {
-        let mut rng = thread_rng();
-        for _ in 0..10 {
-            let g1 = F::G1::rand(&mut rng);
-            let g2 = F::G2::rand(&mut rng);
-            let x = F::random(&mut rng);
-            assert_eq!(
-                F::E::pairing(F::g1_mul(g1, x), g2),
-                F::E::pairing(g1, F::g2_mul(g2, x))
-            );
-        }
-    }
+//     fn pairing<F: PairingField>() {
+//         let mut rng = thread_rng();
+//         for _ in 0..10 {
+//             let g1 = F::G1::rand(&mut rng);
+//             let g2 = F::G2::rand(&mut rng);
+//             let x = F::random(&mut rng);
+//             assert_eq!(
+//                 F::E::pairing(F::g1_mul(g1, x), g2),
+//                 F::E::pairing(g1, F::g2_mul(g2, x))
+//             );
+//         }
+//     }
 
-    #[test]
-    fn pairing_test() {
-        pairing::<Bn254F>();
-    }
-}
+//     #[test]
+//     fn pairing_test() {
+//         pairing::<Bn254F>();
+//     }
+// }

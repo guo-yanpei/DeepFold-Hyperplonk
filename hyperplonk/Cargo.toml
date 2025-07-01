@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 arithmetic = { path = "../arithmetic" }
 poly_commit = { path = "../poly_commit" }
+seal_fhe = { path = "../thirdparty/seal_fhe" }
 util = { path = "../util" }
 rand = "0.8.5"
 csv = "1.3.0"

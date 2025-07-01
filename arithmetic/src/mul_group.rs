@@ -97,69 +97,68 @@ impl<F: FftField> Radix2Group<F> {
     }
 }
 
-#[cfg(test)]
-mod tests {
+// #[cfg(test)]
+// mod tests {
 
-    use crate::field::{goldilocks64::Goldilocks64, Field};
+//     use crate::field::{goldilocks64::Goldilocks64, Field};
+//     use super::*;
+//     #[test]
+//     fn fft_and_ifft() {
+//         let mut a = vec![];
+//         let mut b = vec![];
+//         let mut rng = rand::thread_rng();
+//         for _i in 0..16 {
+//             a.push(Goldilocks64::random(&mut rng));
+//             b.push(Goldilocks64::random(&mut rng));
+//         }
+//         for _i in 16..32 {
+//             a.push(Goldilocks64::zero());
+//             b.push(Goldilocks64::zero());
+//         }
+//         let mul_group = Radix2Group::new(5);
+//         let mut fft_a = mul_group.fft(a.clone());
+//         let fft_b = mul_group.fft(b.clone());
+//         for i in 0..fft_a.len() {
+//             fft_a[i] *= fft_b[i];
+//         }
+//         let fft_a_times_b = mul_group.ifft(fft_a);
+//         let mut a_times_b = vec![];
+//         for _i in 0..32 {
+//             a_times_b.push(Goldilocks64::zero());
+//         }
+//         for i in 0..16usize {
+//             for j in 0..16usize {
+//                 a_times_b[i + j] += a[i] * b[j];
+//             }
+//         }
+//         assert_eq!(fft_a_times_b, a_times_b);
+//         let b = mul_group.fft(a.clone());
+//         let c = mul_group.ifft(b);
+//         assert_eq!(a, c);
+//     }
 
-    use super::*;
-    #[test]
-    fn fft_and_ifft() {
-        let mut a = vec![];
-        let mut b = vec![];
-        let mut rng = rand::thread_rng();
-        for _i in 0..16 {
-            a.push(Goldilocks64::random(&mut rng));
-            b.push(Goldilocks64::random(&mut rng));
-        }
-        for _i in 16..32 {
-            a.push(Goldilocks64::zero());
-            b.push(Goldilocks64::zero());
-        }
-        let mul_group = Radix2Group::new(5);
-        let mut fft_a = mul_group.fft(a.clone());
-        let fft_b = mul_group.fft(b.clone());
-        for i in 0..fft_a.len() {
-            fft_a[i] *= fft_b[i];
-        }
-        let fft_a_times_b = mul_group.ifft(fft_a);
-        let mut a_times_b = vec![];
-        for _i in 0..32 {
-            a_times_b.push(Goldilocks64::zero());
-        }
-        for i in 0..16usize {
-            for j in 0..16usize {
-                a_times_b[i + j] += a[i] * b[j];
-            }
-        }
-        assert_eq!(fft_a_times_b, a_times_b);
-        let b = mul_group.fft(a.clone());
-        let c = mul_group.ifft(b);
-        assert_eq!(a, c);
-    }
+//     #[test]
+//     fn elements() {
+//         let coset = Radix2Group::<Goldilocks64>::new(5);
+//         assert_eq!(coset.element_at(0), Goldilocks64::one());
+//         assert_eq!(coset.element_inv_at(0), Goldilocks64::one());
+//         let omega = coset.omega;
+//         for i in 0..30 {
+//             assert_eq!(coset.element_at(i) * omega, coset.element_at(i + 1));
+//             assert_eq!(
+//                 coset.element_inv_at(i) * omega.inv().unwrap(),
+//                 coset.element_inv_at(i + 1)
+//             );
+//         }
+//     }
 
-    #[test]
-    fn elements() {
-        let coset = Radix2Group::<Goldilocks64>::new(5);
-        assert_eq!(coset.element_at(0), Goldilocks64::one());
-        assert_eq!(coset.element_inv_at(0), Goldilocks64::one());
-        let omega = coset.omega;
-        for i in 0..30 {
-            assert_eq!(coset.element_at(i) * omega, coset.element_at(i + 1));
-            assert_eq!(
-                coset.element_inv_at(i) * omega.inv().unwrap(),
-                coset.element_inv_at(i + 1)
-            );
-        }
-    }
-
-    #[test]
-    fn exp() {
-        let coset = Radix2Group::<Goldilocks64>::new(5);
-        let coset_square = coset.exp(2);
-        for (idx, i) in coset_square.elements.iter().enumerate() {
-            assert_eq!(*i, coset.element_at(idx).exp(2));
-            assert_eq!(*i, coset.element_at(idx + coset_square.size()).exp(2));
-        }
-    }
-}
+//     #[test]
+//     fn exp() {
+//         let coset = Radix2Group::<Goldilocks64>::new(5);
+//         let coset_square = coset.exp(2);
+//         for (idx, i) in coset_square.elements.iter().enumerate() {
+//             assert_eq!(*i, coset.element_at(idx).exp(2));
+//             assert_eq!(*i, coset.element_at(idx + coset_square.size()).exp(2));
+//         }
+//     }
+// }

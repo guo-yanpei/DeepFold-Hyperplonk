@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ sunscreen ]
+  pull_request:
+    branches: [ sunscreen ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
+    - name: Install clang and other utilities
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential clang
+
+    - name: Build SEAL
+      run: |
+        cmake -S . -B build -DSEAL_BUILD_EXAMPLES=ON -DSEAL_BUILD_TESTS=ON -DSEAL_THROW_ON_TRANSPARENT_CIPHERTEXT=ON -DSEAL_BUILD_SEAL_C=ON
+        cmake --build build
+
+    - name: Run tests
+      run: ./build/bin/sealtest

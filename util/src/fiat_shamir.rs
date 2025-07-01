@@ -1,9 +1,11 @@
 use std::mem::size_of;
 
-use arithmetic::field::Field;
+// use arithmetic::field::Field;
+use seal_fhe::{Context, FromBytes, Plaintext, ToBytes};
 use sha2::{Digest, Sha256};
 
 const HASH_SIZE: usize = 32;
+type F = Plaintext;
 
 #[derive(Debug, Clone, Default)]
 pub struct Proof {
@@ -23,13 +25,14 @@ impl Proof {
     }
 
     #[inline(always)]
-    pub fn get_next_and_step<F: Field>(&mut self) -> F {
-        let ret = F::deserialize_from(&self.bytes[self.idx..(self.idx + F::SIZE)]);
+    pub fn get_next_and_step(&mut self, ctx: &Context) -> F {
+        let ret = F::from_bytes(ctx, &self.bytes[self.idx..(self.idx + F::SIZE)]).unwrap();
         self.step(F::SIZE);
         ret
     }
 
     pub fn get_next_hash(&mut self) -> [u8; HASH_SIZE] {
+        
         let ret = self.bytes[self.idx..(self.idx + HASH_SIZE)]
             .try_into()
             .unwrap();
@@ -99,20 +102,21 @@ impl Transcript {
         }
     }
 
-    pub fn append_f<F: Field>(&mut self, f: F) {
+    pub fn append_f(&mut self, f: F) {
         let cur_size = self.proof.bytes.len();
         self.proof.bytes.resize(cur_size + F::SIZE, 0);
-        f.serialize_into(&mut self.proof.bytes[cur_size..]);
+        let _ = &self.proof.bytes[cur_size..].copy_from_slice(&f.as_bytes().unwrap());
+        // f.serialize_into(&mut self.proof.bytes[cur_size..]);
     }
 
     pub fn append_u8_slice(&mut self, buffer: &[u8], size: usize) {
         self.proof.append_u8_slice(buffer, size);
     }
 
-    pub fn challenge_f<F: Field>(&mut self) -> F {
+    pub fn challenge_f(&mut self, ctx: &Context) -> F {
         self.hash_to_digest();
         assert!(F::SIZE <= Self::DIGEST_SIZE);
-        F::from_uniform_bytes(&self.digest)
+        F::from_bytes(ctx, &self.digest).unwrap()
     }
 
     pub fn challenge_usizes(&mut self, num: usize) -> Vec<usize> {

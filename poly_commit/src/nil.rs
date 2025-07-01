@@ -1,14 +1,17 @@
 use std::marker::PhantomData;
 
 use arithmetic::{field::Field, poly::MultiLinearPoly};
+use seal_fhe::Plaintext;
 use util::fiat_shamir::{Proof, Transcript};
 
 use crate::{CommitmentSerde, PolyCommitProver, PolyCommitVerifier};
 
 #[derive(Debug, Clone, Default)]
-pub struct NilCommitment<F: Field>(PhantomData<F>);
+pub struct NilCommitment(PhantomData<F>);
 
-impl<F: Field> CommitmentSerde for NilCommitment<F> {
+type F = Plaintext;
+
+impl CommitmentSerde for NilCommitment {
     fn size(nv: usize, np: usize) -> usize {
         0
     }
@@ -21,15 +24,15 @@ impl<F: Field> CommitmentSerde for NilCommitment<F> {
 }
 
 #[derive(Debug, Clone)]
-pub struct NilPcProver<F: Field> {
-    evals: Vec<Vec<F::BaseField>>,
+pub struct NilPcProver {
+    evals: Vec<Vec<F>>,
 }
 
-impl<F: Field> PolyCommitProver<F> for NilPcProver<F> {
+impl PolyCommitProver for NilPcProver {
     type Param = ();
-    type Commitment = NilCommitment<F>;
+    type Commitment = NilCommitment;
 
-    fn new(_pp: &(), evals: &[Vec<F::BaseField>]) -> Self {
+    fn new(_pp: &(), evals: &[Vec<F>]) -> Self {
         NilPcProver {
             evals: evals.iter().map(|x| x.clone()).collect(),
         }
@@ -49,13 +52,13 @@ impl<F: Field> PolyCommitProver<F> for NilPcProver<F> {
 }
 
 #[derive(Debug, Clone)]
-pub struct NilPcVerifier<F: Field> {
-    commit: NilCommitment<F>,
+pub struct NilPcVerifier {
+    commit: NilCommitment,
 }
 
-impl<F: Field> PolyCommitVerifier<F> for NilPcVerifier<F> {
+impl PolyCommitVerifier for NilPcVerifier {
     type Param = ();
-    type Commitment = NilCommitment<F>;
+    type Commitment = NilCommitment;
 
     fn new(_pp: &Self::Param, commit: Self::Commitment, poly_num: usize) -> Self {
         NilPcVerifier { commit }

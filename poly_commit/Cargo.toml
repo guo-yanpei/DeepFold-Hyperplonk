@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 arithmetic = { path = "../arithmetic" }
 util = { path = "../util" }
+seal_fhe = { path = "../thirdparty/seal_fhe" }
 rand = "0.8.5"
 rs_merkle = "1.3"
 ark-ec = "0.4"
