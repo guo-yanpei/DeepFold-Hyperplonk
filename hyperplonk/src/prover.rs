@@ -34,7 +34,7 @@ impl<'a, PC: PolyCommitProver> Prover<'a, PC> {
     }
 
     pub fn prove(&self, pp: &PC::Param, nv: usize, 
-        witness: [Vec<F>; 3], params: &'a EncryptionParameters, 
+        witness: [Vec<Q>; 3], params: &'a EncryptionParameters, 
         ctx: &'a Context, encoder: &'a BFVEncoder, oracle: &'a RandomOracle) -> (Vec<[Vec<F>; 1]>, Vec<Vec<[Vec<F>; 2]>>, Vec<F>, Vec<[Vec<Plaintext>; 2]>, Vec<F>) {
 
         // 0. setup: initialize fiat shamir and commit witness

@@ -4,7 +4,7 @@ use std::ptr::null_mut;
 use std::vec;
 
 use crate::{bindgen, serialization::CompressionType, Context, FromBytes, ToBytes};
-use crate::{encoder, error::*, Asym, Encryptor};
+use crate::{encoder, error::*, evaluator, Asym, BFVEvaluator, Encryptor};
 
 use serde::ser::Error;
 use serde::{Serialize, Serializer};
@@ -475,6 +475,18 @@ impl Ciphertext {
      */
     pub fn get_handle(&self) -> *mut c_void {
         self.handle
+    }
+
+    pub fn add(&self, rhs: &Self, evaluator: &BFVEvaluator) -> Self {
+        evaluator.add(self, rhs).unwrap()
+    }
+
+    pub fn sub(&self, rhs: &Self, evaluator: &BFVEvaluator) -> Self {
+        evaluator.sub(self, rhs).unwrap()
+    }
+
+    pub fn mult(&self, rhs: &Self, evaluator: &BFVEvaluator) -> Self {
+        evaluator.multiply(self, rhs).unwrap()
     }
 
     /**
