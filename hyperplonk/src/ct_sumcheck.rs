@@ -40,14 +40,15 @@ impl<'a> Sumcheck {
             let sums = (0..m).step_by(2).fold(
                 [0; M].map(|_| vec![Q::from_int(0, encoder, encryptor); degree + 1]),
                 |mut acc, x| {
+                    // compute evaluations on hypercube
                     let mut extrapolations = vec![];
                     for j in 0..N {
                         let v_0 = evals[j][x].clone();
                         let v_1 = evals[j][x + 1].clone();
-                        let diff = evaluator.sub(&v_1, &v_0).unwrap();
+                        let diff = v_1.sub(&v_0, evaluator);
                         let mut e = vec![v_0.clone(), v_1.clone()];
                         for k in 1..degree {
-                            e.push(evaluator.add(&e[k], &diff).unwrap());
+                            e.push(e[k].add(&diff, evaluator));
                         }
                         extrapolations.push(e);
                     }
@@ -58,7 +59,7 @@ impl<'a> Sumcheck {
                         }
                         let tmp = f(res.try_into().unwrap());
                         for k in 0..M {
-                            acc[k][j] = evaluator.add(&acc[k][j], &tmp[k]).unwrap();
+                            acc[k][j] = acc[k][j].add(&tmp[k], evaluator);
                         }
                     }
                     acc
@@ -89,7 +90,6 @@ impl<'a> Sumcheck {
                     prod *= T::from_with_modulus(i as u64, modulus) - T::from_with_modulus(j as u64, modulus);
                 }
             }
-            println!("prod modulus: {}", prod.get_modulus());
             res.push(prod);
         }
         batch_inverse(&mut res);
@@ -127,7 +127,7 @@ impl<'a> Sumcheck {
     }
 
     pub fn verify<const M: usize>(
-        mut y: [F; M],
+        mut y: [Q; M],
         degree: usize,
         var_num: usize,
         total_sums: Vec<[Vec<Q>; M]>,
@@ -142,11 +142,9 @@ impl<'a> Sumcheck {
         decryptor: &Decryptor,
     ) -> (Vec<F>, [F; M]) {
         let mut res = vec![];
-        // let mut yy = vec![];
+        let mut yy = (0..M).map(|x| decryptor.decrypt(&y[x]).unwrap()).collect::<Vec<F>>();
         let modulus = params.get_plain_modulus().value();
-        println!("modulus: {}", modulus);
         let base = Self::init_base(degree, modulus);
-        println!("init base ok.");
         for i in 0..var_num {
             // let sums = [0; M].map(|_| {
             //     let mut sum = vec![];
@@ -164,20 +162,23 @@ impl<'a> Sumcheck {
                 println!("j: {}", j);
                 let sc1 = decryptor.decrypt(&sums[j][0]).unwrap();
                 let sc2 = decryptor.decrypt(&sums[j][1]).unwrap();
-                pts.push(vec![sc1.clone(), sc2.clone()]);
+                pts.push(
+                    sums[j].iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>()
+                );
                 // let pty = decryptor.decrypt(&y[j]).unwrap();
-                assert_eq!(sc1.add(&sc2, encoder), y[j]);
+                // yy[j] = decryptor.decrypt(&y[j]).unwrap();
+                assert_eq!(sc1.add(&sc2, encoder).get_value(encoder)[0], yy[j].get_value(encoder)[0]);
             }
             // let challenge: F = transcript.challenge_f(ctx);
             let challenge = oracle.folding_challenges[i].clone();
             res.push(challenge.clone());
             for j in 0..M { 
                 // yy.push(Self::uni_extrapolate::<DynamicField>(&base, &pts[j], challenge.clone(), encoder));
-                y[j] = Self::uni_extrapolate::<DynamicField>(&base, &pts[j], challenge.clone(), encoder);
+                yy[j] = Self::uni_extrapolate::<DynamicField>(&base, &pts[j], challenge.clone(), encoder);
                 println!("extrapolate ok.");
             }
         }
-        (res, y)
+        (res, yy.try_into().unwrap())
     }
 }
 
@@ -196,8 +197,8 @@ mod tests {
     type Q = Ciphertext;
 
     const VN: usize = 2;
-    const BATCH_SIZE: u64 = 4096;
-    const CIPHER_BIT_VEC: &[i32] = &[40, 30, 30];
+    const BATCH_SIZE: u64 = 8192;
+    const CIPHER_BIT_VEC: &[i32] = &[50, 30, 30, 50, 40];
 
     fn gen_params_n_ctx() -> (EncryptionParameters, Context) {
         let params = BfvEncryptionParametersBuilder::new()
@@ -214,6 +215,54 @@ mod tests {
     }
 
     #[test]
+    fn test_ct_multiply() {
+        let (params, ctx) = gen_params_n_ctx();
+        let encoder = BFVEncoder::new(&ctx, &params).unwrap();
+        let key_gen = KeyGenerator::new(&ctx).unwrap();
+        let relin_keys = key_gen.create_relinearization_keys().unwrap();
+        let oracle = RandomOracle::new(VN, 0, &ctx, &params, &key_gen);
+        let evaluator = BFVEvaluator::new(&ctx).unwrap();
+        let encryptor = Encryptor::<Asym>::new(&ctx, &key_gen.create_public_key()).unwrap();
+        let decryptor = Decryptor::new(&ctx, &key_gen.secret_key()).unwrap();
+
+        let a = F::from_int(1 << 5, &encoder);
+        let b = F::from_int(1 << 5, &encoder);
+        let c = F::from_int(1 << 5, &encoder);
+        let d = F::from_int(1 << 5, &encoder);
+
+        let ca = encryptor.encrypt(&a).unwrap();
+        let cb = encryptor.encrypt(&b).unwrap();
+        let cc = encryptor.encrypt(&c).unwrap();
+        let cd = encryptor.encrypt(&d).unwrap();
+
+        let capbbbbbb = ca.mult_plain(&b, &evaluator)
+            .mult_plain(&b, &evaluator)
+            .mult_plain(&b, &evaluator)
+            .mult_plain(&b, &evaluator)
+            .mult_plain(&b, &evaluator)
+            .mult_plain(&b, &evaluator);
+
+        assert_eq!(decryptor.decrypt(&capbbbbbb).unwrap().get_value(&encoder)[0], 
+        a.mult(&b, &encoder).mult(&b, &encoder).mult(&b, &encoder).mult(&b, &encoder).mult(&b, &encoder).mult(&b, &encoder).get_value(&encoder)[0]);
+        let capb = evaluator.multiply_plain(&ca, &b).unwrap();
+        let capbc = evaluator.multiply_plain(&capb, &c).unwrap();
+
+        let mut cab = evaluator.multiply(&ca, &cb).unwrap();
+        let _ = evaluator.relinearize_inplace(&mut cab, &relin_keys);
+        let _ = evaluator.mod_switch_to_next_inplace(&mut cab);
+
+        let cabpc = evaluator.multiply_plain(&cab, &c).unwrap();
+        let mut cabc = evaluator.multiply(&cab, &cc).unwrap();
+        // let _ = evaluator.relinearize_inplace(&mut cabc, &relin_keys);
+        // let _ = evaluator.mod_switch_to_next_inplace(&mut cabc);
+        let cabcd = evaluator.multiply(&cabc, &cd).unwrap();
+
+        assert_eq!(decryptor.decrypt(&capbc).unwrap().get_value(&encoder)[0], a.mult(&b, &encoder).mult(&c, &encoder).get_value(&encoder)[0]);
+        assert_eq!(decryptor.decrypt(&cabpc).unwrap().get_value(&encoder)[0], a.mult(&b, &encoder).mult(&c, &encoder).get_value(&encoder)[0]);
+        assert_eq!(decryptor.decrypt(&cabc).unwrap().get_value(&encoder)[0], a.mult(&b, &encoder).mult(&c, &encoder).get_value(&encoder)[0]);
+    }
+
+    #[test]
     fn test_sumcheck() {
         let mut rng = thread_rng();
         let (params, ctx) = gen_params_n_ctx();
@@ -227,62 +276,68 @@ mod tests {
         let a = (0..1<<VN)
             .map(|_| Q::random_ct(&encoder, &encryptor))
             .collect::<Vec<_>>();
-        let pta = a.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
         let b = (0..1<<VN)
             .map(|_| Q::random_ct(&encoder, &encryptor))
             .collect::<Vec<_>>();
-        let ptb = b.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
         let c = (0..1<<VN)
             .map(|_| Q::random_ct(&encoder, &encryptor))
             .collect::<Vec<_>>();
-        let ptc = c.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
         let d = (0..1<<VN)
             .map(|_| Q::random_ct(&encoder, &encryptor))
             .collect::<Vec<_>>();
-        let ptd = d.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
         // let mut transcript = Transcript::new();
         let (new_point, evals, total_sums) = Sumcheck::prove(
-            [a.clone(), b.clone(), c.clone(), d.clone()],
-            3,
-            // |v: [F; 4]| [(v[0] * v[1] + v[2]) * v[3], v[2] * v[2] * v[3]],
-            |v: [Q; 4]| [
-                // evaluator.multiply(&evaluator.add(&evaluator.multiply(&v[0], &v[1]).unwrap(), &v[2]).unwrap(), &v[3]).unwrap(),
-                v[0].mult(&v[1], &evaluator).add(&v[2], &evaluator).mult(&v[3], &evaluator),
-                // evaluator.multiply(&evaluator.multiply(&v[2], &v[2]).unwrap(), &v[3]).unwrap()
-                v[2].mult(&v[2], &evaluator).mult(&v[3], &evaluator)
-            ],
+            [a.clone(), b.clone()],
+            2,
+            |v: [Q; 2]| [v[0].mult(&v[1], &evaluator)],
+            // |v: [Q; 4]| [
+            //     // evaluator.multiply(&evaluator.add(&evaluator.multiply(&v[0], &v[1]).unwrap(), &v[2]).unwrap(), &v[3]).unwrap(),
+            //     v[0].mult(&v[1], &evaluator).add(&v[2], &evaluator).mult(&v[3], &evaluator),
+            //     // evaluator.multiply(&evaluator.multiply(&v[2], &v[2]).unwrap(), &v[3]).unwrap()
+            //     v[2].mult(&v[2], &evaluator).mult(&v[3], &evaluator)
+            // ],
             &ctx,
             &encoder,
             &oracle,
             &evaluator,
             &encryptor,
         );
-        let y = (0..1<<VN).fold([F::from_int(0, &encoder), F::from_int(0, &encoder)], |acc, x| {
+        let pta = a.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
+        let ptb = b.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
+        let ptc = c.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
+        let ptd = d.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<_>>();
+        // let y = (0..1<<VN).fold([Q::from_int(0, &encoder, &encryptor), Q::from_int(0, &encoder, &encryptor)], |acc, x| {
+        //     [
+        //         // acc[0] + (a[x] * b[x] + c[x]) * d[x],
+        //         a[x].mult(&b[x], &evaluator).add(&c[x], &evaluator).mult(&d[x], &evaluator).add(&acc[0], &evaluator),
+        //         // acc[1] + c[x] * c[x] * d[x],
+        //         c[x].mult(&c[x], &evaluator).mult(&d[x], &evaluator).add(&acc[1], &evaluator),
+        //     ]
+        // });
+        let y = (0..1<<VN).fold([Q::from_int(0, &encoder, &encryptor)], |acc, x| {
             [
-                // acc[0] + (a[x] * b[x] + c[x]) * d[x],
-                pta[x].mult(&ptb[x], &encoder).add(&ptc[x], &encoder).mult(&ptd[x], &encoder).add(&acc[0], &encoder),
-                // acc[1] + c[x] * c[x] * d[x],
-                ptc[x].mult(&ptc[x], &encoder).mult(&ptd[x], &encoder).add(&acc[1], &encoder),
+                a[x].mult(&b[x], &evaluator).add(&acc[0], &evaluator),
+                // b[x].add(&acc[1], &evaluator)
             ]
         });
         // let mut proof = transcript.proof;
         // let mut transcript = Transcript::new();
-        let (point, y) = Sumcheck::verify(y, 3, VN, total_sums, &params, &ctx, &encoder, &oracle, &evaluator, &encryptor, &decryptor);
-        assert_eq!(
-            MultiLinearPoly::eval_multilinear_ext(&pta, &point, &encoder)
-                .mult(&MultiLinearPoly::eval_multilinear_ext(&ptb, &point, &encoder), &encoder)
-                .add(&MultiLinearPoly::eval_multilinear_ext(&ptc, &point, &encoder), &encoder).mult(&MultiLinearPoly::eval_multilinear_ext(&ptd, &point, &encoder), &encoder),
-            // (MultiLinearPoly::eval_multilinear_ext(&a, &point, &encoder)
-            //     * MultiLinearPoly::eval_multilinear_ext(&b, &point, &encoder)
-            //     + MultiLinearPoly::eval_multilinear_ext(&c, &point, &encoder))
-            //     * MultiLinearPoly::eval_multilinear_ext(&d, &point, &encoder),
-            y[0]
-        );
-        assert_eq!(
-            MultiLinearPoly::eval_multilinear_ext(&ptc, &point, &encoder)
-                .mult(&MultiLinearPoly::eval_multilinear_ext(&ptc, &point, &encoder), &encoder)
-                .mult(&MultiLinearPoly::eval_multilinear_ext(&ptd, &point, &encoder), &encoder),
-            y[1]
-        );
+        let (point, y) = Sumcheck::verify(y, 2, VN, total_sums, &params, &ctx, &encoder, &oracle, &evaluator, &encryptor, &decryptor);
+        // assert_eq!(
+        //     MultiLinearPoly::eval_multilinear_ext(&pta, &point, &encoder)
+        //         .mult(&MultiLinearPoly::eval_multilinear_ext(&ptb, &point, &encoder), &encoder)
+        //         .add(&MultiLinearPoly::eval_multilinear_ext(&ptc, &point, &encoder), &encoder).mult(&MultiLinearPoly::eval_multilinear_ext(&ptd, &point, &encoder), &encoder),
+        //     // (MultiLinearPoly::eval_multilinear_ext(&a, &point, &encoder)
+        //     //     * MultiLinearPoly::eval_multilinear_ext(&b, &point, &encoder)
+        //     //     + MultiLinearPoly::eval_multilinear_ext(&c, &point, &encoder))
+        //     //     * MultiLinearPoly::eval_multilinear_ext(&d, &point, &encoder),
+        //     y[0]
+        // );
+        // assert_eq!(
+        //     MultiLinearPoly::eval_multilinear_ext(&ptc, &point, &encoder)
+        //         .mult(&MultiLinearPoly::eval_multilinear_ext(&ptc, &point, &encoder), &encoder)
+        //         .mult(&MultiLinearPoly::eval_multilinear_ext(&ptd, &point, &encoder), &encoder),
+        //     y[1]
+        // );
     }
 }

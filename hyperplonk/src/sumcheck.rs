@@ -151,15 +151,19 @@ impl<'a> Sumcheck {
             // });
             println!("{} step entered, M is {}", i, M);
             let sums = total_sums[i].clone();
+            let mut pts = vec![];
             for j in 0..M {
                 println!("j: {}", j);
-                assert_eq!(sums[j][0].add(&sums[j][1], encoder), y[j]);
+                pts.push(
+                    sums[j].iter().map(|x| x.clone()).collect::<Vec<_>>()
+                );
+                assert_eq!(sums[j][0].add(&sums[j][1], encoder).get_value(encoder), y[j].get_value(encoder));
             }
             // let challenge: F = transcript.challenge_f(ctx);
             let challenge = oracle.folding_challenges[i].clone();
             res.push(challenge.clone());
             for j in 0..M {
-                y[j] = Self::uni_extrapolate::<DynamicField>(&base, &sums[j], challenge.clone(), encoder);
+                y[j] = Self::uni_extrapolate::<DynamicField>(&base, &pts[j], challenge.clone(), encoder);
                 println!("extrapolate ok.");
             }
         }
@@ -245,18 +249,18 @@ mod tests {
         assert_eq!(
             MultiLinearPoly::eval_multilinear_ext(&a, &point, &encoder)
                 .mult(&MultiLinearPoly::eval_multilinear_ext(&b, &point, &encoder), &encoder)
-                .add(&MultiLinearPoly::eval_multilinear_ext(&c, &point, &encoder), &encoder).mult(&MultiLinearPoly::eval_multilinear_ext(&d, &point, &encoder), &encoder),
+                .add(&MultiLinearPoly::eval_multilinear_ext(&c, &point, &encoder), &encoder).mult(&MultiLinearPoly::eval_multilinear_ext(&d, &point, &encoder), &encoder).get_value(&encoder)[0],
             // (MultiLinearPoly::eval_multilinear_ext(&a, &point, &encoder)
             //     * MultiLinearPoly::eval_multilinear_ext(&b, &point, &encoder)
             //     + MultiLinearPoly::eval_multilinear_ext(&c, &point, &encoder))
             //     * MultiLinearPoly::eval_multilinear_ext(&d, &point, &encoder),
-            y[0]
+            y[0].get_value(&encoder)[0]
         );
         assert_eq!(
             MultiLinearPoly::eval_multilinear_ext(&c, &point, &encoder)
                 .mult(&MultiLinearPoly::eval_multilinear_ext(&c, &point, &encoder), &encoder)
-                .mult(&MultiLinearPoly::eval_multilinear_ext(&d, &point, &encoder), &encoder),
-            y[1]
+                .mult(&MultiLinearPoly::eval_multilinear_ext(&d, &point, &encoder), &encoder).get_value(&encoder)[0],
+            y[1].get_value(&encoder)[0]
         );
     }
 }

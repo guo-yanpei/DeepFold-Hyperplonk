@@ -489,6 +489,19 @@ impl Ciphertext {
         evaluator.multiply(self, rhs).unwrap()
     }
 
+    pub fn add_plain(&self, rhs: &Plaintext, evaluator: &BFVEvaluator) -> Self {
+        evaluator.add_plain(self, rhs).unwrap()
+    }
+
+    pub fn sub_plain(&self, rhs: &Plaintext, evaluator: &BFVEvaluator) -> Self {
+        evaluator.sub_plain(self, rhs).unwrap()
+    }
+
+    pub fn mult_plain(&self, rhs: &Plaintext, evaluator: &BFVEvaluator) -> Self {
+        evaluator.multiply_plain(self, rhs).unwrap()
+    }
+
+
     /**
      * Creates a new empty plaintext. Use an encoder to populate with a value.
      */

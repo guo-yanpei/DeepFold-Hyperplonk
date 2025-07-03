@@ -1,8 +1,8 @@
 use arithmetic::{field::Field, poly::MultiLinearPoly};
-use seal_fhe::{BFVEncoder, Ciphertext, Context, EncryptionParameters, Plaintext};
+use seal_fhe::{Asym, BFVEncoder, BFVEvaluator, Ciphertext, Context, Decryptor, EncryptionParameters, Encryptor, Plaintext};
 use util::{fiat_shamir::{Proof, Transcript}, random_oracle::RandomOracle};
 
-use crate::sumcheck::Sumcheck;
+use crate::ct_sumcheck::Sumcheck;
 
 type F = Plaintext;
 type Q = Ciphertext;
@@ -10,8 +10,9 @@ type Q = Ciphertext;
 pub struct ProdEqCheck;
 
 impl<'a> ProdEqCheck {
-    pub fn prove(evals: [Vec<F>; 2], params: &'a EncryptionParameters, ctx: &'a Context, 
-        encoder: &'a BFVEncoder, oracle: &'a RandomOracle) -> (Vec<F>, Vec<F>, Vec<Vec<[Vec<F>; 2]>>) {
+    pub fn prove(evals: [Vec<Q>; 2], params: &'a EncryptionParameters, ctx: &'a Context, 
+        encoder: &'a BFVEncoder, oracle: &'a RandomOracle,
+        evaluator: &'a BFVEvaluator, encryptor: &'a Encryptor<Asym>) -> (Vec<F>, Vec<Q>, Vec<Vec<[Vec<Q>; 2]>>) {
         // let encoder = BFVEncoder::new(ctx, params).unwrap();
         let var_num = evals[0].len().ilog2() as usize;
         let mut transcript = vec![];
@@ -58,13 +59,15 @@ impl<'a> ProdEqCheck {
             }
 
             let (mut new_point, v, total_sum) = Sumcheck::prove(
-                [evals_00, evals_01, evals_10, evals_11, eq.evals],
+                [evals_00, evals_01, evals_10, evals_11, eq.evals.iter().map(|x| encryptor.encrypt(x).unwrap()).collect()],
                 3,
                 // transcript,
-                |v: [F; 5]| [v[0].mult(&v[1], encoder).mult(&v[4], encoder), v[2].mult(&v[3], encoder).mult(&v[4], encoder)],
+                |v: [Q; 5]| [v[0].mult(&v[1], evaluator).mult(&v[4], evaluator), v[2].mult(&v[3], evaluator).mult(&v[4], evaluator)],
                 ctx,
                 encoder,
-                oracle
+                oracle,
+                evaluator,
+                encryptor
             );
             total_sums.push(total_sum);
             for j in 0..4 {
@@ -80,13 +83,16 @@ impl<'a> ProdEqCheck {
 
     pub fn verify(
         var_num: usize,
-        transcript: Vec<F>,
+        transcript: Vec<Q>,
         // proof: &mut Proof,
-        total_sums: Vec<Vec<[Vec<F>; 2]>>,
+        total_sums: Vec<Vec<[Vec<Q>; 2]>>,
         params: &EncryptionParameters,
         ctx: &Context,
         encoder: &BFVEncoder,
         oracle: &RandomOracle,
+        evaluator: &BFVEvaluator,
+        encryptor: &Encryptor<Asym>,
+        decryptor: &Decryptor,
     ) -> (Vec<F>, [F; 2]) {
         // let mut v0: F = proof.get_next_and_step(ctx);
         // let mut v1: F = proof.get_next_and_step(ctx);
@@ -113,7 +119,7 @@ impl<'a> ProdEqCheck {
         ];
         for i in 1..var_num {
             let sums = total_sums[i-1].clone();
-            let (mut new_point, new_y) = Sumcheck::verify(y, 3, i, sums, params, ctx, &encoder, oracle);
+            let (mut new_point, new_y) = Sumcheck::verify(y, 3, i, sums, params, ctx, &encoder, oracle, evaluator, encryptor, decryptor);
             // v0 = proof.get_next_and_step(ctx);
             // v1 = proof.get_next_and_step(ctx);
             v0 = transcript[4*i].clone();
