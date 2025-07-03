@@ -4,7 +4,7 @@ use std::ptr::null_mut;
 use std::vec;
 
 use crate::{bindgen, serialization::CompressionType, Context, FromBytes, ToBytes};
-use crate::{encoder, error::*, evaluator, Asym, BFVEvaluator, Encryptor};
+use crate::{encoder, error::*, evaluator, Asym, BFVEvaluator, Decryptor, Encryptor, Evaluator, RelinearizationKeys};
 
 use serde::ser::Error;
 use serde::{Serialize, Serializer};
@@ -173,6 +173,10 @@ impl Plaintext {
 
     pub fn get_value(&self, encoder: &BFVEncoder) -> Vec<u64> {
         encoder.decode_unsigned(&self).unwrap()
+    }
+
+    pub fn encrypt(&self, encryptor: &Encryptor<Asym>) -> Ciphertext {
+        encryptor.encrypt(self).unwrap()
     }
 
     /**
@@ -489,6 +493,10 @@ impl Ciphertext {
         evaluator.multiply(self, rhs).unwrap()
     }
 
+    pub fn mult_relin(&self, rhs: &Self, evaluator: &BFVEvaluator, relin_keys: &RelinearizationKeys) -> Self {
+        evaluator.relinearize(&evaluator.multiply(self, rhs).unwrap(), relin_keys).unwrap()
+    }
+
     pub fn add_plain(&self, rhs: &Plaintext, evaluator: &BFVEvaluator) -> Self {
         evaluator.add_plain(self, rhs).unwrap()
     }
@@ -499,6 +507,14 @@ impl Ciphertext {
 
     pub fn mult_plain(&self, rhs: &Plaintext, evaluator: &BFVEvaluator) -> Self {
         evaluator.multiply_plain(self, rhs).unwrap()
+    }
+
+    pub fn decrypt(&self, decryptor: &Decryptor) -> Plaintext {
+        decryptor.decrypt(self).unwrap()
+    }
+
+    pub fn relinearize(&self, evaluator: &BFVEvaluator, relin_keys: &RelinearizationKeys) -> Self {
+        evaluator.relinearize(self, relin_keys).unwrap()
     }
 
 

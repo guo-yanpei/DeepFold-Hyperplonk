@@ -36,7 +36,7 @@ impl<'a, PC: PolyCommitProver> Prover<'a, PC> {
     pub fn prove(&self, pp: &PC::Param, nv: usize, 
         witness: [Vec<Q>; 3], params: &'a EncryptionParameters, 
         ctx: &'a Context, encoder: &'a BFVEncoder, oracle: &'a RandomOracle,
-        encryptor: &'a Encryptor<Asym>, evaluator: &'a BFVEvaluator) -> (Vec<[Vec<F>; 1]>, Vec<Vec<[Vec<F>; 2]>>, Vec<F>, Vec<[Vec<Plaintext>; 2]>, Vec<F>) {
+        encryptor: &'a Encryptor<Asym>, evaluator: &'a BFVEvaluator) -> (Vec<[Vec<Q>; 1]>, Vec<Vec<[Vec<Q>; 2]>>, Vec<Q>, Vec<[Vec<Q>; 2]>, Vec<F>, Vec<Q>) {
 
         // 0. setup: initialize fiat shamir and commit witness
         // let mut transcript = Transcript::new();
@@ -141,13 +141,13 @@ impl<'a, PC: PolyCommitProver> Prover<'a, PC> {
             // .map(|(x, y)| F::add(&F::add(&r[0], &x, &self.encoder), &F::mult(&r[1], &y, &self.encoder), &self.encoder))
             .map(|(x, y)| x.add_plain(&r[0].add(&y.mult(&r[1], encoder), encoder), evaluator))
             .collect::<Vec<Q>>();
-        let (prod_point, prod_transcript, prod_total_sums) = ProdEqCheck::prove([evals1, evals2], params, ctx, encoder, oracle);
+        let (prod_point, prod_transcript, prod_total_sums) = ProdEqCheck::prove([evals1, evals2], params, ctx, encoder, oracle, evaluator, encryptor);
 
         for i in 0..3 {
-            let v = MultiLinearPoly::eval_multilinear(
+            let v = MultiLinearPoly::eval_multilinear_ct(
                 &witness[i],
-                &prod_point[..nv],
-                &self.encoder
+                &prod_point[..nv].to_vec(),
+                evaluator
             );
             ct_transcript.push(v);
         }
@@ -234,7 +234,7 @@ impl<'a, PC: PolyCommitProver> Prover<'a, PC> {
             ));
         }
         for i in 0..3 {
-            ct_transcript.push(MultiLinearPoly::eval_multilinear(&witness[i], &point, &self.encoder));
+            ct_transcript.push(MultiLinearPoly::eval_multilinear_ct(&witness[i], &point, evaluator));
         }
 
         // PC::open(
@@ -244,6 +244,6 @@ impl<'a, PC: PolyCommitProver> Prover<'a, PC> {
         //     &mut transcript,
         // );
 
-        (total_sums, prod_total_sums, prod_transcript, sc_total_sums, transcript)
+        (total_sums, prod_total_sums, prod_transcript, sc_total_sums, pt_transcript, ct_transcript)
     }
 }

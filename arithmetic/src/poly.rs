@@ -1,8 +1,9 @@
-use seal_fhe::{BFVEncoder, Context, EncryptionParameters, Plaintext};
+use seal_fhe::{Asym, BFVEncoder, BFVEvaluator, Ciphertext, Context, EncryptionParameters, Encryptor, Plaintext};
 
 // use crate::field::Field;
 
 type F = Plaintext;
+type Q = Ciphertext;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Definition for an MLE, with an associated type F.
@@ -65,6 +66,33 @@ impl<'a> MultiLinearPoly<'a> {
             // res += point[i].mul_base_elem(t);
         }
         res
+    }
+
+    pub fn eval_multilinear_ct(evals: &Vec<Q>, point: &Vec<F>, evaluator: &'a BFVEvaluator) -> Q {
+        let mut scratch = vec![];
+        let mut cur_eval_size = 1 << (point.len() - 1);
+        assert_eq!(cur_eval_size << 1, evals.len());
+        for i in 0..cur_eval_size {
+            let e0 = &evals[i*2];
+            let e1 = &evals[i*2+1];
+            let mul_elem = e1.sub(&e0, evaluator);
+            let push_elem = mul_elem.mult_plain(&point[0], evaluator).add(&e0, evaluator);
+            // let push_elem = F::add(&F::mult(&point[0], &mul_elem, encoder), e0, encoder);
+            scratch.push(push_elem);
+                // point[0]
+                //     .mul_base_elem(evals[i * 2 + 1] - evals[i * 2])
+                //     .add_base_elem(evals[i * 2]),
+        }
+        for r in point[1..].iter() {
+            cur_eval_size >>= 1;
+            for i in 0..cur_eval_size {
+                scratch[i] = scratch[i*2+1].sub(&scratch[i*2], evaluator).mult_plain(r, evaluator).add(&scratch[i*2], evaluator);
+                // let p2 = F::mult(&F::sub(&scratch[i*2+1], &scratch[i*2], encoder), r, encoder);
+                // scratch[i] = F::add(&scratch[i*2], &p2, encoder);
+                // scratch[i] = scratch[i * 2] + (scratch[i * 2 + 1] - scratch[i * 2]) * (*r);
+            }
+        }
+        scratch[0].clone()
     }
 
     pub fn eval_multilinear(evals: &Vec<F>, point: &[F], encoder: &'a BFVEncoder) -> F {

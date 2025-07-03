@@ -23,7 +23,8 @@ impl<'a> ProdEqCheck {
                 let mut evals = vec![];
                 let m = 1 << (var_num - j);
                 for k in 0..m {
-                    evals.push(F::mult(&last_prod[k * 2], &last_prod[k * 2 + 1], &encoder));
+                    evals.push(last_prod[k*2].mult(&last_prod[k*2+1], evaluator));
+                    // evals.push(F::mult(&last_prod[k * 2], &last_prod[k * 2 + 1], &encoder));
                 }
                 products[i].push(evals);
             }
@@ -98,15 +99,15 @@ impl<'a> ProdEqCheck {
         // let mut v1: F = proof.get_next_and_step(ctx);
         // let mut v2: F = proof.get_next_and_step(ctx);
         // let mut v3: F = proof.get_next_and_step(ctx);
-        let mut v0 = transcript[0].clone();
-        let mut v1 = transcript[1].clone();
-        let mut v2 = transcript[2].clone();
-        let mut v3 = transcript[3].clone();
+        let mut v0 = transcript[0].decrypt(decryptor);
+        let mut v1 = transcript[1].decrypt(decryptor);
+        let mut v2 = transcript[2].decrypt(decryptor);
+        let mut v3 = transcript[3].decrypt(decryptor);
 
-        let encoder = BFVEncoder::new(ctx, params).unwrap();
+        // let encoder = BFVEncoder::new(ctx, params).unwrap();
 
         // assert_eq!(v0 * v1, v2 * v3);
-        assert_eq!(v0.mult(&v1, &encoder), v2.mult(&v3, &encoder));
+        assert_eq!(v0.mult(&v1, encoder).get_value(encoder)[0], v2.mult(&v3, encoder).get_value(encoder)[0]);
         // transcript.push(v0);
         // transcript.push(v1);
         // transcript.push(v2);
@@ -114,29 +115,32 @@ impl<'a> ProdEqCheck {
         // let mut point = vec![transcript.challenge_f(ctx)];
         let mut point = vec![oracle.folding_challenges[0].clone()];
         let mut y = [
-            F::add(&v0, &F::mult(&F::sub(&v1, &v0, &encoder), &point[0], &encoder), &encoder),
-            F::add(&v2, &F::mult(&F::sub(&v3, &v2, &encoder), &point[0], &encoder), &encoder)
+            v1.sub(&v0, encoder).mult(&point[0], encoder).add(&v0, encoder),
+            v3.sub(&v2, encoder).mult(&point[0], encoder).add(&v2, encoder),
+            // F::add(&v0, &F::mult(&F::sub(&v1, &v0, &encoder), &point[0], &encoder), &encoder),
+            // F::add(&v2, &F::mult(&F::sub(&v3, &v2, &encoder), &point[0], &encoder), &encoder)
         ];
         for i in 1..var_num {
             let sums = total_sums[i-1].clone();
-            let (mut new_point, new_y) = Sumcheck::verify(y, 3, i, sums, params, ctx, &encoder, oracle, evaluator, encryptor, decryptor);
+            let pts_sums = Sumcheck::decrypt_sums(sums, decryptor);
+            let (mut new_point, new_y) = Sumcheck::verify(y, 3, i, pts_sums, params, ctx, &encoder, oracle, evaluator, encryptor, decryptor);
             // v0 = proof.get_next_and_step(ctx);
             // v1 = proof.get_next_and_step(ctx);
-            v0 = transcript[4*i].clone();
-            v1 = transcript[4*i+1].clone();
+            v0 = transcript[4*i].decrypt(decryptor);
+            v1 = transcript[4*i+1].decrypt(decryptor);
             assert_eq!(
-                v0.mult(&v1, &encoder).mult(&MultiLinearPoly::eval_eq(&new_point, &point, &encoder), &encoder),
-                new_y[0]
+                v0.mult(&v1, &encoder).mult(&MultiLinearPoly::eval_eq(&new_point, &point, &encoder), encoder).get_value(encoder)[0],
+                new_y[0].get_value(encoder)[0]
             );
             // transcript.append_f(v0);
             // transcript.append_f(v1);
             // v2 = proof.get_next_and_step(ctx);
             // v3 = proof.get_next_and_step(ctx);
-            v2 = transcript[4*i+2].clone();
-            v3 = transcript[4*i+3].clone();
+            v2 = transcript[4*i+2].decrypt(decryptor);
+            v3 = transcript[4*i+3].decrypt(decryptor);
             assert_eq!(
-                v2.mult(&v3, &encoder).mult(&MultiLinearPoly::eval_eq(&new_point, &point, &encoder), &encoder),
-                new_y[1]
+                v2.mult(&v3, &encoder).mult(&MultiLinearPoly::eval_eq(&new_point, &point, &encoder), &encoder).get_value(encoder)[0],
+                new_y[1].get_value(encoder)[0]
             );
             // transcript.append_f(v2);
             // transcript.append_f(v3);
@@ -145,8 +149,10 @@ impl<'a> ProdEqCheck {
             point = vec![r.clone()];
             point.append(&mut new_point);
             y = [
-                F::add(&v0, &F::mult(&F::sub(&v1, &v0, &encoder), &r, &encoder), &encoder),
-                F::add(&v2, &F::mult(&F::sub(&v3, &v2, &encoder), &r, &encoder), &encoder),
+                // F::add(&v0, &F::mult(&F::sub(&v1, &v0, &encoder), &r, &encoder), &encoder),
+                // F::add(&v2, &F::mult(&F::sub(&v3, &v2, &encoder), &r, &encoder), &encoder),
+                v1.sub(&v0, encoder).mult(&r, encoder).add(&v0, encoder),
+                v3.sub(&v2, encoder).mult(&r, encoder).add(&v2, encoder),
             ]
             // y = [v0 + (v1 - v0) * r, v2 + (v3 - v2) * r];
         }
@@ -163,20 +169,19 @@ mod tests {
     use rand::thread_rng;
     use util::{fiat_shamir::Transcript, random_oracle::RandomOracle};
 
-    use crate::prod_eq_check::F;
-
     use super::ProdEqCheck;
 
     use seal_fhe::{
-        Asym, BFVEncoder, BfvEncryptionParametersBuilder,
-        CoefficientModulus, Context, Decryptor, EncryptionParameters, Encryptor,
-        KeyGenerator, PlainModulus, SecurityLevel,
+        Asym, BFVEncoder, BFVEvaluator, BfvEncryptionParametersBuilder, Ciphertext, CoefficientModulus, Context, Decryptor, EncryptionParameters, Encryptor, KeyGenerator, PlainModulus, Plaintext, SecurityLevel
     };
 
+    type F = Plaintext;
+    type Q = Ciphertext;
+
     // use super::SumcheckVerifier;
-    const VN: usize = 5;
-    const BATCH_SIZE: u64 = 4096;
-    const CIPHER_BIT_VEC: &[i32] = &[40, 30, 30];
+    const VN: usize = 2;
+    const BATCH_SIZE: u64 = 1 << 14;
+    const CIPHER_BIT_VEC: &[i32] = &[50; 7];
 
     fn gen_params_n_ctx() -> (EncryptionParameters, Context) {
         let params = BfvEncryptionParametersBuilder::new()
@@ -197,21 +202,27 @@ mod tests {
         let (params, ctx) = gen_params_n_ctx();
         let encoder = BFVEncoder::new(&ctx, &params).unwrap();
         let key_gen = KeyGenerator::new(&ctx).unwrap();
-        let oracle = RandomOracle::new(VN, 1, &ctx, &params, &key_gen);
+        let oracle = RandomOracle::new(VN, 0, &ctx, &params, &key_gen);
+        let evaluator = BFVEvaluator::new(&ctx).unwrap();
+        let encryptor = Encryptor::<Asym>::new(&ctx, &key_gen.create_public_key()).unwrap();
+        let decryptor = Decryptor::new(&ctx, &key_gen.secret_key()).unwrap();
+
         // let mut transcript = Transcript::new();
         let mut rng = thread_rng();
         let evals = (0..1<<VN)
-            .map(|_| F::random_pt(&encoder))
+            .map(|_| Q::random_ct(&encoder, &encryptor))
             .collect::<Vec<_>>();
+        let pt_evals = evals.iter().map(|x| decryptor.decrypt(x).unwrap()).collect::<Vec<F>>();
         let evals_rev = evals.clone().into_iter().rev().collect::<Vec<_>>();
-        let (point, transcript, total_sums) = ProdEqCheck::prove([evals.clone(), evals_rev.clone()], &params, &ctx, &encoder, &oracle);
+        let pt_evals_rev = pt_evals.clone().into_iter().rev().collect::<Vec<_>>();
+        let (point, transcript, total_sums) = ProdEqCheck::prove([evals.clone(), evals_rev.clone()], &params, &ctx, &encoder, &oracle, &evaluator, &encryptor);
         // let mut proof = transcript.proof;
 
         // let mut transcript = Transcript::new();
-        let (new_point, y) = ProdEqCheck::verify(VN, transcript, total_sums, &params, &ctx, &encoder, &oracle);
-        assert_eq!(MultiLinearPoly::eval_multilinear_ext(&evals, &point, &encoder), y[0]);
+        let (new_point, y) = ProdEqCheck::verify(VN, transcript, total_sums, &params, &ctx, &encoder, &oracle, &evaluator, &encryptor, &decryptor);
+        assert_eq!(MultiLinearPoly::eval_multilinear_ext(&pt_evals, &point, &encoder), y[0]);
         assert_eq!(
-            MultiLinearPoly::eval_multilinear_ext(&evals_rev, &new_point, &encoder),
+            MultiLinearPoly::eval_multilinear_ext(&pt_evals_rev, &new_point, &encoder),
             y[1]
         );
     }
